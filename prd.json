@@ -148,7 +148,7 @@
                                                    "Unit tests cover happy path and duplicate email case",
                                                    "Integration test confirms DB row created correctly"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "AUTH-002",
