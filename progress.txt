@@ -265,3 +265,16 @@ Key decisions / gotchas:
 - Normalized timestamp parsing in sync filtering to avoid SQLite text/datetime comparison edge cases while preserving MySQL-compatible behavior.
 Files created/modified: packages/backend/app/api/v1/vault.py, packages/backend/app/services/vault.py, packages/backend/app/schemas/vault.py, packages/backend/tests/test_vault_sync_integration.py, prd.json, progress.txt
 ---
+---
+[VAULT-004] — Vault item revision history and restore endpoints
+Date: 2026-02-20
+What was done:
+- Added `GET /api/v1/vault/items/{id}/history` to return revision history entries with `revision_number` and `created_at`.
+- Added `POST /api/v1/vault/items/{id}/restore` to restore a selected revision while first snapshotting current encrypted state as a new revision.
+- Added restore audit logging (`restore_item`) and an Alembic migration to extend the audit enum in MySQL.
+- Added integration coverage validating history listing before/after restore, restored ciphertext values, and restore audit emission.
+Key decisions / gotchas:
+- Restore behavior only rewrites `encrypted_data`/`encrypted_key` because revision records store encrypted blobs, while item metadata remains unchanged.
+- Reused existing revision-pruning policy (keep last 10) during restore so revision retention stays consistent with update semantics.
+Files created/modified: packages/backend/app/api/v1/vault.py, packages/backend/app/services/vault.py, packages/backend/app/schemas/vault.py, packages/backend/app/models/audit_log.py, packages/backend/alembic/versions/0008_add_restore_item_audit_action.py, packages/backend/tests/test_vault_restore_history_integration.py, prd.json, progress.txt
+---

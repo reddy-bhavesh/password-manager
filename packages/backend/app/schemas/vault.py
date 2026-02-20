@@ -25,6 +25,10 @@ class UpdateVaultItemRequest(BaseModel):
     folder_id: uuid.UUID | None = None
 
 
+class RestoreVaultItemRequest(BaseModel):
+    revision_number: int = Field(ge=1)
+
+
 class VaultItemCreatedResponse(BaseModel):
     id: uuid.UUID
     type: str
@@ -80,3 +84,8 @@ class VaultItemsPageResponse(BaseModel):
     total: int
     limit: int
     offset: int
+
+
+class VaultItemRevisionResponse(BaseModel):
+    revision_number: int
+    created_at: datetime.datetime

@@ -20,6 +20,10 @@ class VaultItemForbiddenError(Exception):
     pass
 
 
+class VaultItemRevisionNotFoundError(Exception):
+    pass
+
+
 def _utc_now() -> datetime.datetime:
     return datetime.datetime.now(datetime.UTC)
 
@@ -199,15 +203,7 @@ async def update_vault_item(
     item.folder_id = payload.folder_id
     item.updated_at = updated_at
 
-    prune_result = await db.execute(
-        select(VaultItemRevision.id)
-        .where(VaultItemRevision.item_id == item.id)
-        .order_by(VaultItemRevision.revision_number.desc())
-        .offset(10)
-    )
-    stale_revision_ids = list(prune_result.scalars().all())
-    if stale_revision_ids:
-        await db.execute(delete(VaultItemRevision).where(VaultItemRevision.id.in_(stale_revision_ids)))
+    await _prune_item_revisions(db, item_id=item.id, keep_last=10)
 
     await _create_audit_log(
         db,
@@ -252,6 +248,87 @@ async def soft_delete_vault_item(
         now=deleted_at,
     )
     await db.commit()
+
+
+async def list_vault_item_history(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    item_id: uuid.UUID,
+) -> list[VaultItemRevision]:
+    item = await _get_active_item_in_org(db, item_id=item_id, org_id=current_user.org_id)
+    if item is None:
+        raise VaultItemNotFoundError
+    _ensure_owner_access(item, user_id=current_user.id)
+
+    revisions_result = await db.execute(
+        select(VaultItemRevision)
+        .where(VaultItemRevision.item_id == item.id)
+        .order_by(VaultItemRevision.revision_number.asc())
+    )
+    return list(revisions_result.scalars().all())
+
+
+async def restore_vault_item_revision(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    item_id: uuid.UUID,
+    revision_number: int,
+    client_ip: str,
+    user_agent: str,
+    now: datetime.datetime | None = None,
+) -> VaultItem:
+    restored_at = now or _utc_now()
+    item = await _get_active_item_in_org(db, item_id=item_id, org_id=current_user.org_id)
+    if item is None:
+        raise VaultItemNotFoundError
+    _ensure_owner_access(item, user_id=current_user.id)
+
+    target_revision_result = await db.execute(
+        select(VaultItemRevision).where(
+            VaultItemRevision.item_id == item.id,
+            VaultItemRevision.revision_number == revision_number,
+        )
+    )
+    target_revision = target_revision_result.scalar_one_or_none()
+    if target_revision is None:
+        raise VaultItemRevisionNotFoundError
+
+    revision_number_result = await db.execute(
+        select(func.max(VaultItemRevision.revision_number)).where(VaultItemRevision.item_id == item.id)
+    )
+    max_revision_number = revision_number_result.scalar_one_or_none()
+    next_revision_number = 1 if max_revision_number is None else int(max_revision_number) + 1
+    db.add(
+        VaultItemRevision(
+            item_id=item.id,
+            encrypted_data=item.encrypted_data,
+            encrypted_key=item.encrypted_key,
+            revision_number=next_revision_number,
+            created_at=restored_at,
+        )
+    )
+    await db.flush()
+
+    item.encrypted_data = target_revision.encrypted_data
+    item.encrypted_key = target_revision.encrypted_key
+    item.updated_at = restored_at
+
+    await _prune_item_revisions(db, item_id=item.id, keep_last=10)
+    await _create_audit_log(
+        db,
+        org_id=current_user.org_id,
+        actor_id=current_user.id,
+        action=AuditLogAction.RESTORE_ITEM,
+        target_id=item.id,
+        client_ip=client_ip,
+        user_agent=user_agent,
+        now=restored_at,
+    )
+    await db.commit()
+    await db.refresh(item)
+    return item
 
 
 async def list_vault_items(
@@ -325,3 +402,20 @@ async def get_vault_revision_counter(
     if latest_update is None:
         return 0
     return int(latest_update.timestamp() * 1_000_000)
+
+
+async def _prune_item_revisions(
+    db: AsyncSession,
+    *,
+    item_id: uuid.UUID,
+    keep_last: int,
+) -> None:
+    prune_result = await db.execute(
+        select(VaultItemRevision.id)
+        .where(VaultItemRevision.item_id == item_id)
+        .order_by(VaultItemRevision.revision_number.desc())
+        .offset(keep_last)
+    )
+    stale_revision_ids = list(prune_result.scalars().all())
+    if stale_revision_ids:
+        await db.execute(delete(VaultItemRevision).where(VaultItemRevision.id.in_(stale_revision_ids)))

@@ -18,6 +18,7 @@ class AuditLogAction(str, enum.Enum):
     VIEW_ITEM = "view_item"
     EDIT_ITEM = "edit_item"
     DELETE_ITEM = "delete_item"
+    RESTORE_ITEM = "restore_item"
     SHARE_ITEM = "share_item"
     MFA_ENABLE = "mfa_enable"
     MFA_DISABLE = "mfa_disable"

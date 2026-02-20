@@ -12,19 +12,24 @@ from app.db.session import get_db_session
 from app.models.user import User
 from app.schemas.vault import (
     CreateVaultItemRequest,
+    RestoreVaultItemRequest,
     UpdateVaultItemRequest,
     VaultItemCreatedResponse,
+    VaultItemRevisionResponse,
     VaultItemsPageResponse,
     VaultItemResponse,
 )
 from app.services.vault import (
     VaultItemForbiddenError,
     VaultItemNotFoundError,
+    VaultItemRevisionNotFoundError,
     create_vault_item,
     get_vault_revision_counter,
+    list_vault_item_history,
     list_vault_items,
     list_vault_items_since,
     get_vault_item,
+    restore_vault_item_revision,
     soft_delete_vault_item,
     update_vault_item,
 )
@@ -217,3 +222,81 @@ async def delete_item(
             type_="https://vaultguard.dev/errors/vault-item-forbidden",
         )
     return Response(status_code=204)
+
+
+@router.get("/items/{item_id}/history", response_model=list[VaultItemRevisionResponse])
+async def get_item_history(
+    item_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[VaultItemRevisionResponse]:
+    try:
+        revisions = await list_vault_item_history(
+            db,
+            current_user=current_user,
+            item_id=item_id,
+        )
+    except VaultItemNotFoundError:
+        return problem_response(
+            status=404,
+            title="Not Found",
+            detail="Vault item not found.",
+            type_="https://vaultguard.dev/errors/vault-item-not-found",
+        )
+    except VaultItemForbiddenError:
+        return problem_response(
+            status=403,
+            title="Forbidden",
+            detail="You do not have access to this vault item.",
+            type_="https://vaultguard.dev/errors/vault-item-forbidden",
+        )
+    return [
+        VaultItemRevisionResponse(
+            revision_number=revision.revision_number,
+            created_at=revision.created_at,
+        )
+        for revision in revisions
+    ]
+
+
+@router.post("/items/{item_id}/restore", response_model=VaultItemResponse)
+async def restore_item_revision(
+    item_id: uuid.UUID,
+    payload: RestoreVaultItemRequest,
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> VaultItemResponse:
+    client_ip = request.client.host if request.client and request.client.host else "0.0.0.0"
+    user_agent = request.headers.get("user-agent", "")
+    try:
+        item = await restore_vault_item_revision(
+            db,
+            current_user=current_user,
+            item_id=item_id,
+            revision_number=payload.revision_number,
+            client_ip=client_ip,
+            user_agent=user_agent,
+        )
+    except VaultItemNotFoundError:
+        return problem_response(
+            status=404,
+            title="Not Found",
+            detail="Vault item not found.",
+            type_="https://vaultguard.dev/errors/vault-item-not-found",
+        )
+    except VaultItemForbiddenError:
+        return problem_response(
+            status=403,
+            title="Forbidden",
+            detail="You do not have access to this vault item.",
+            type_="https://vaultguard.dev/errors/vault-item-forbidden",
+        )
+    except VaultItemRevisionNotFoundError:
+        return problem_response(
+            status=404,
+            title="Not Found",
+            detail="Vault item revision not found.",
+            type_="https://vaultguard.dev/errors/vault-item-revision-not-found",
+        )
+    return VaultItemResponse.from_item(item)

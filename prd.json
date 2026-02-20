@@ -267,7 +267,7 @@
                                                    "Audit log entry for restore action",
                                                    "Integration tests covering restore and subsequent history listing"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "VAULT-005",
