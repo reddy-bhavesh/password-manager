@@ -1,0 +1,10 @@
+{
+  "name": "@vaultguard/extension",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node -e \"console.log('extension build stub')\"",
+    "lint": "node -e \"console.log('extension lint stub')\"",
+    "test": "node -e \"console.log('extension test stub')\""
+  }
+}

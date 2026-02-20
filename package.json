@@ -1,0 +1,19 @@
+{
+    "name":  "vaultguard",
+    "version":  "1.0.0",
+    "private":  true,
+    "workspaces":  [
+                       "packages/backend",
+                       "packages/web",
+                       "packages/extension"
+                   ],
+    "scripts":  {
+                    "build":  "turbo run build",
+                    "lint":  "turbo run lint",
+                    "test":  "turbo run test"
+                },
+    "devDependencies":  {
+                            "turbo":  "2.4.2"
+                        },
+    "packageManager":  "npm@10.9.2"
+}

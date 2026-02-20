@@ -1,0 +1,13 @@
+---
+[INFRA-001] — Initialize monorepo with Turborepo
+Date: 2026-02-20
+What was done:
+- Created Turborepo monorepo scaffolding at the repository root.
+- Added root workspace configuration and stub package scripts for backend, web, and extension workspaces.
+- Added repository baseline config files (.editorconfig and .gitignore).
+- Marked INFRA-001 as passed in prd.json.
+Key decisions / gotchas:
+- Used minimal stub build/lint/test scripts per workspace so turbo pipelines execute before full app scaffolding.
+- Kept backend as a placeholder workspace package for Turborepo orchestration; Python service setup is deferred to INFRA-003.
+Files created/modified: package.json, turbo.json, .editorconfig, .gitignore, packages/backend/package.json, packages/web/package.json, packages/extension/package.json, prd.json, progress.txt
+---

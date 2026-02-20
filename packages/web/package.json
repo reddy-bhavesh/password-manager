@@ -1,0 +1,10 @@
+{
+  "name": "@vaultguard/web",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node -e \"console.log('web build stub')\"",
+    "lint": "node -e \"console.log('web lint stub')\"",
+    "test": "node -e \"console.log('web test stub')\""
+  }
+}
