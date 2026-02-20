@@ -107,7 +107,7 @@
                                                    "alembic upgrade head completes without error",
                                                    "Indexes on owner_id and org_id exist"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "DB-003",

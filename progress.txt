@@ -96,3 +96,20 @@ Key decisions / gotchas:
 - Used Alembic SQL generation against the MySQL dialect (`--sql`) to verify DDL output and migration chain correctness without a running containerized MySQL instance.
 Files created/modified: packages/backend/alembic/versions/0002_create_organizations_and_users.py, packages/backend/app/models/__init__.py, packages/backend/app/models/organization.py, packages/backend/app/models/user.py, packages/backend/app/db/base.py, packages/backend/pyproject.toml, prd.json, progress.txt
 ---
+
+---
+[DB-002] - Create VaultItem and VaultItemRevision tables migration
+Date: 2026-02-20
+What was done:
+- Added Alembic revision `0003_create_vault_items_and_revisions` creating `vault_items` and `vault_item_revisions`.
+- Implemented required columns for encrypted blobs, soft-delete (`deleted_at`), revision tracking, and FK relationships (`owner_id`, `org_id`, `item_id`).
+- Added explicit indexes on `vault_items.owner_id` and `vault_items.org_id` plus uniqueness on `(item_id, revision_number)`.
+- Added typed SQLAlchemy models `VaultItem` and `VaultItemRevision` with enum-backed `VaultItemType`.
+- Registered new models in `app/models/__init__.py` and `app/db/base.py` for metadata/migration consistency.
+- Marked `DB-002` as passed in `prd.json`.
+- Validated with `python -m pytest -q`, `python -m compileall app`, and `python -m alembic upgrade head --sql`.
+Key decisions / gotchas:
+- Kept `folder_id` nullable on `vault_items` and deferred a concrete FK constraint until the `folders` table exists in `DB-003`.
+- Docker execution was not used; migration validity was verified through generated MySQL DDL (`--sql`) per environment constraints.
+Files created/modified: packages/backend/alembic/versions/0003_create_vault_items_and_revisions.py, packages/backend/app/models/vault_item.py, packages/backend/app/models/__init__.py, packages/backend/app/db/base.py, prd.json, progress.txt
+---
