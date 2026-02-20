@@ -223,7 +223,7 @@
                                                    "Requires valid JWT (uses AUTH-005 dependency)",
                                                    "Unit + integration tests"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "VAULT-002",

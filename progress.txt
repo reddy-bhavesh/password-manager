@@ -11,20 +11,7 @@ Key decisions / gotchas:
 - Kept backend as a placeholder workspace package for Turborepo orchestration; Python service setup is deferred to INFRA-003.
 Files created/modified: package.json, turbo.json, .editorconfig, .gitignore, packages/backend/package.json, packages/web/package.json, packages/extension/package.json, prd.json, progress.txt
 ---
-[AUTH-003] — Token refresh and logout endpoints
-Date: 2026-02-20
-What was done:
-- Implemented `POST /api/v1/auth/refresh` to rotate refresh tokens, revoke the old session token, and return new access/refresh tokens.
-- Implemented `POST /api/v1/auth/logout` to revoke the session tied to the provided refresh token for the authenticated user.
-- Implemented `DELETE /api/v1/auth/sessions/{id}` to revoke a specific session for the authenticated user.
-- Added audit log emission for refresh (`REFRESH_TOKEN`), logout (`LOGOUT`), and explicit session revoke (`SESSION_REVOKE`), and also login (`LOGIN`) when a session is created.
-- Added new auth schemas and comprehensive unit/integration tests covering rotation replay rejection, session revocation, and audit log persistence.
-Key decisions / gotchas:
-- Added bearer-token parsing in auth routes for logout/session-revoke before the shared auth middleware story lands.
-- Adjusted user/session lookup logic to be UUID-format tolerant so SQLite integration tests and MySQL behavior both remain stable.
-- Updated prior login integration tests to include `audit_logs` test table setup since login now writes audit events.
-Files created/modified: packages/backend/app/api/v1/auth.py, packages/backend/app/schemas/auth.py, packages/backend/app/services/auth.py, packages/backend/tests/test_auth_login_integration.py, packages/backend/tests/test_auth_session_management_unit.py, packages/backend/tests/test_auth_session_management_integration.py, prd.json, progress.txt
----
+
 ---
 [INFRA-002]  Docker Compose dev environment
 Date: 2026-02-20
@@ -188,6 +175,23 @@ Key decisions / gotchas:
 - Docker execution was not used in this session; verification was done with pytest + in-memory SQLite integration tests.
 Files created/modified: packages/backend/app/api/v1/auth.py, packages/backend/app/core/settings.py, packages/backend/app/schemas/auth.py, packages/backend/app/security/tokens.py, packages/backend/app/services/auth.py, packages/backend/pyproject.toml, packages/backend/tests/test_auth_login_integration.py, packages/backend/tests/test_auth_tokens_unit.py, prd.json, progress.txt
 ---
+
+---
+[AUTH-003] — Token refresh and logout endpoints
+Date: 2026-02-20
+What was done:
+- Implemented `POST /api/v1/auth/refresh` to rotate refresh tokens, revoke the old session token, and return new access/refresh tokens.
+- Implemented `POST /api/v1/auth/logout` to revoke the session tied to the provided refresh token for the authenticated user.
+- Implemented `DELETE /api/v1/auth/sessions/{id}` to revoke a specific session for the authenticated user.
+- Added audit log emission for refresh (`REFRESH_TOKEN`), logout (`LOGOUT`), and explicit session revoke (`SESSION_REVOKE`), and also login (`LOGIN`) when a session is created.
+- Added new auth schemas and comprehensive unit/integration tests covering rotation replay rejection, session revocation, and audit log persistence.
+Key decisions / gotchas:
+- Added bearer-token parsing in auth routes for logout/session-revoke before the shared auth middleware story lands.
+- Adjusted user/session lookup logic to be UUID-format tolerant so SQLite integration tests and MySQL behavior both remain stable.
+- Updated prior login integration tests to include `audit_logs` test table setup since login now writes audit events.
+Files created/modified: packages/backend/app/api/v1/auth.py, packages/backend/app/schemas/auth.py, packages/backend/app/services/auth.py, packages/backend/tests/test_auth_login_integration.py, packages/backend/tests/test_auth_session_management_unit.py, packages/backend/tests/test_auth_session_management_integration.py, prd.json, progress.txt
+---
+
 ---
 [AUTH-004] — TOTP MFA enrollment and verification
 Date: 2026-02-20
@@ -216,4 +220,18 @@ Key decisions / gotchas:
 - Implemented role guard as hierarchical (`viewer < member < manager < admin < owner`) so higher-privileged roles satisfy lower-role requirements.
 - Continued using centralized token validation (`validate_access_token`) to enforce RS256 signature, issuer, and expiry checks in one place.
 Files created/modified: packages/backend/app/api/dependencies/__init__.py, packages/backend/app/api/dependencies/auth.py, packages/backend/app/api/v1/auth.py, packages/backend/app/services/auth.py, packages/backend/tests/test_auth_dependencies_unit.py, prd.json, progress.txt
+---
+---
+[VAULT-001] — Create vault item endpoint
+Date: 2026-02-20
+What was done:
+- Added `POST /api/v1/vault/items` protected by `get_current_user` JWT dependency.
+- Implemented vault item creation service that stores `encrypted_data` and `encrypted_key` verbatim and never decodes/decrypts them.
+- Added audit logging on create with `action=CREATE_ITEM` and `target_id` set to the created item.
+- Added unit and integration tests covering happy path persistence/audit behavior and unauthorized access.
+- Imported model registry during app startup so SQLAlchemy metadata resolves cross-model foreign keys at runtime.
+Key decisions / gotchas:
+- Used a dedicated `vault` schema/service/router split to keep endpoint validation, business logic, and API wiring clean.
+- Integration test schema needs the `folders` table present because `vault_items.folder_id` has a foreign key reference.
+Files created/modified: packages/backend/app/schemas/vault.py, packages/backend/app/services/vault.py, packages/backend/app/api/v1/vault.py, packages/backend/app/main.py, packages/backend/tests/test_vault_create_unit.py, packages/backend/tests/test_vault_create_integration.py, prd.json, progress.txt
 ---
