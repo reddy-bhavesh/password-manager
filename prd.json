@@ -1,671 +1,671 @@
-﻿{
-    "project":  "VaultGuard â€” Enterprise Password Manager",
-    "version":  "1.0.0",
-    "stories":  [
-                    {
-                        "id":  "INFRA-001",
-                        "phase":  0,
-                        "title":  "Initialize monorepo with Turborepo",
-                        "description":  "Create a Turborepo monorepo at the repo root containing three workspaces: backend (Python/FastAPI), web (React/Vite), and extension (Vite/CRXJS). Add root package.json, turbo.json, .editorconfig, and .gitignore.",
-                        "acceptanceCriteria":  [
-                                                   "turbo.json exists at repo root with build/lint/test pipelines defined",
-                                                   "packages/backend, packages/web, packages/extension directories exist",
-                                                   "Root npm install succeeds without errors",
-                                                   "turbo run build executes (even if workspaces have empty stubs)"
-                                               ],
-                        "passes":  true
-                    },
-                    {
-                        "id":  "INFRA-002",
-                        "phase":  0,
-                        "title":  "Docker Compose dev environment",
-                        "description":  "Create docker-compose.dev.yml that spins up MySQL 8.0, MinIO (S3-compatible object storage), and Redis (for session cache/rate limiting). Include health checks and document all required env vars in .env.example.",
-                        "acceptanceCriteria":  [
-                                                   "docker-compose.dev.yml present at repo root",
-                                                   "docker compose -f docker-compose.dev.yml up -d starts all services without errors",
-                                                   ".env.example documents every env var consumed by docker-compose.dev.yml",
-                                                   "MySQL health check passes (mysqladmin ping)",
-                                                   "MinIO health check passes (/minio/health/live)"
-                                               ],
-                        "passes":  true
-                    },
-                    {
-                        "id":  "INFRA-003",
-                        "phase":  0,
-                        "title":  "FastAPI backend skeleton with SQLAlchemy async + Alembic",
-                        "description":  "In packages/backend: initialize a FastAPI app with async SQLAlchemy (aiomysql driver), Alembic configured for async migrations, a /health endpoint, and a settings module that reads from environment variables via pydantic-settings.",
-                        "acceptanceCriteria":  [
-                                                   "packages/backend/app/main.py exists and starts with uvicorn",
-                                                   "GET /health returns {\"status\": \"ok\"}",
-                                                   "alembic.ini and alembic/env.py present and configured for async",
-                                                   "alembic upgrade head runs without error against the dev MySQL instance",
-                                                   "pyproject.toml lists all dependencies with pinned versions"
-                                               ],
-                        "passes":  true
-                    },
-                    {
-                        "id":  "INFRA-004",
-                        "phase":  0,
-                        "title":  "React + Vite frontend skeleton",
-                        "description":  "In packages/web: initialize a React 19 + TypeScript project using Vite 6. Install and configure Zustand, TanStack Query, TanStack Router, React Hook Form, Zod, Framer Motion, and Radix UI. Add a stub home page that compiles and renders.",
-                        "acceptanceCriteria":  [
-                                                   "npm run dev in packages/web starts the dev server without errors",
-                                                   "npm run build produces a dist/ folder",
-                                                   "TypeScript typecheck (tsc --noEmit) passes with 0 errors",
-                                                   "All listed libraries appear in package.json"
-                                               ],
-                        "passes":  true
-                    },
-                    {
-                        "id":  "INFRA-005",
-                        "phase":  0,
-                        "title":  "Browser extension skeleton (Manifest V3)",
-                        "description":  "In packages/extension: initialize a Manifest V3 browser extension using Vite + CRXJS. Include a popup (popup.html/popup.tsx), a background service worker stub, and a content script stub. The extension must load in Chrome without errors.",
-                        "acceptanceCriteria":  [
-                                                   "packages/extension/manifest.json is valid MV3",
-                                                   "npm run build in packages/extension produces a dist/ folder loadable as an unpacked extension in Chrome",
-                                                   "Popup renders a placeholder UI without console errors",
-                                                   "TypeScript typecheck passes"
-                                               ],
-                        "passes":  true
-                    },
-                    {
-                        "id":  "INFRA-006",
-                        "phase":  0,
-                        "title":  "GitHub Actions CI pipeline",
-                        "description":  "Create .github/workflows/ci.yml that on every PR: (1) runs Python tests (pytest), (2) runs frontend typecheck + Vitest, (3) runs OWASP Dependency-Check for Python and npm packages, and (4) runs Semgrep SAST with the OWASP ruleset.",
-                        "acceptanceCriteria":  [
-                                                   ".github/workflows/ci.yml exists and is valid GitHub Actions YAML",
-                                                   "All four jobs are defined: backend-test, frontend-check, dependency-scan, sast",
-                                                   "Pipeline runs successfully on a stub PR",
-                                                   "dependency-scan fails the build on HIGH/CRITICAL CVEs"
-                                               ],
-                        "passes":  true
-                    },
-                    {
-                        "id":  "DB-001",
-                        "phase":  1,
-                        "title":  "Create Organization and User tables migration",
-                        "description":  "Write an Alembic migration that creates the organizations and users tables exactly as specified in the data model. Include all columns, types, indexes, and foreign keys. Use UUID primary keys.",
-                        "acceptanceCriteria":  [
-                                                   "Migration file exists in alembic/versions/",
-                                                   "alembic upgrade head creates both tables in MySQL",
-                                                   "organizations: id(UUID PK), name, subscription_tier, settings(JSON), created_at",
-                                                   "users: id(UUID PK), org_id(FK), email(unique), name, role(enum), status(enum), public_key, encrypted_private_key, master_password_hint, mfa_enabled, created_at",
-                                                   "TypeCheck passes (no SQLAlchemy model type errors)"
-                                               ],
-                        "passes":  true
-                    },
-                    {
-                        "id":  "DB-002",
-                        "phase":  1,
-                        "title":  "Create VaultItem and VaultItemRevision tables migration",
-                        "description":  "Write an Alembic migration for vault_items and vault_item_revisions. Include soft-delete (deleted_at), encrypted blob columns, and the full revision tracking schema.",
-                        "acceptanceCriteria":  [
-                                                   "vault_items: id, owner_id(FK), org_id(FK), type(enum), encrypted_data, encrypted_key, name, folder_id(nullable FK), favorite, created_at, updated_at, deleted_at",
-                                                   "vault_item_revisions: id, item_id(FK), encrypted_data, encrypted_key, revision_number, created_at",
-                                                   "alembic upgrade head completes without error",
-                                                   "Indexes on owner_id and org_id exist"
-                                               ],
-                        "passes":  true
-                    },
-                    {
-                        "id":  "DB-003",
-                        "phase":  1,
-                        "title":  "Create Folder, Collection, CollectionMember tables migration",
-                        "description":  "Write an Alembic migration for folders, collections, and collection_members tables.",
-                        "acceptanceCriteria":  [
-                                                   "folders: id, org_id(FK), owner_id(FK), parent_folder_id(nullable self-ref FK), name, created_at",
-                                                   "collections: id, org_id(FK), name, created_by(FKâ†’users), created_at",
-                                                   "collection_members: collection_id(FK), user_or_group_id(UUID), permission(enum: view/edit/share/manage), PRIMARY KEY(collection_id, user_or_group_id)",
-                                                   "alembic upgrade head completes without error"
-                                               ],
-                        "passes":  true
-                    },
-                    {
-                        "id":  "DB-004",
-                        "phase":  1,
-                        "title":  "Create AuditLog and Session tables migration",
-                        "description":  "Write Alembic migrations for audit_logs and sessions. AuditLog must be append-only (no UPDATE). Sessions track JWT refresh tokens.",
-                        "acceptanceCriteria":  [
-                                                   "audit_logs: id, org_id(FK), actor_id(FKâ†’users), action(enum), target_id(nullable), ip_address, user_agent, geo_location, timestamp(NOT NULL, immutable)",
-                                                   "sessions: id(UUID), user_id(FK), refresh_token_hash, device_info(JSON), ip_address, created_at, expires_at, revoked_at(nullable)",
-                                                   "alembic upgrade head completes without error",
-                                                   "Indexes on org_id+timestamp in audit_logs for fast range queries"
-                                               ],
-                        "passes":  true
-                    },
-                    {
-                        "id":  "AUTH-001",
-                        "phase":  2,
-                        "title":  "User registration endpoint with Argon2id password hashing",
-                        "description":  "Implement POST /api/v1/auth/register. Use Argon2id (memory=65536 KB, iterations=3, parallelism=4) to hash the authentication verifier. Store the hash in the users table. Never store or log the raw password.",
-                        "acceptanceCriteria":  [
-                                                   "POST /api/v1/auth/register with {email, name, org_id, auth_verifier, public_key, encrypted_private_key} returns 201",
-                                                   "Password verifier stored as argon2id hash in DB",
-                                                   "Raw auth_verifier never appears in logs",
-                                                   "Duplicate email returns 409 with RFC 7807 error body",
-                                                   "Unit tests cover happy path and duplicate email case",
-                                                   "Integration test confirms DB row created correctly"
-                                               ],
-                        "passes":  true
-                    },
-                    {
-                        "id":  "AUTH-002",
-                        "phase":  2,
-                        "title":  "Login endpoint with JWT access + refresh token issuance",
-                        "description":  "Implement POST /api/v1/auth/preauth (returns KDF params for user) and POST /api/v1/auth/login (verifies auth_verifier, issues RS256 JWT access token 15-min TTL + refresh token 7-day TTL). Refresh token hash stored in sessions table.",
-                        "acceptanceCriteria":  [
-                                                   "POST /api/v1/auth/preauth returns {argon2_params} for the given email",
-                                                   "POST /api/v1/auth/login with valid credentials returns {access_token, refresh_token, user}",
-                                                   "Access token expires in 15 minutes (exp claim)",
-                                                   "Refresh token hash stored in sessions table",
-                                                   "Invalid credentials return 401 with consistent response time (no timing leak)",
-                                                   "Rate limiting: \u003e5 failed attempts from same IP returns 429",
-                                                   "Unit tests for token generation and validation"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "AUTH-003",
-                        "phase":  2,
-                        "title":  "Token refresh and logout endpoints",
-                        "description":  "Implement POST /api/v1/auth/refresh (rotate refresh token â€” old one invalidated), POST /api/v1/auth/logout (revoke current session), and DELETE /api/v1/auth/sessions/{id} (revoke specific session).",
-                        "acceptanceCriteria":  [
-                                                   "POST /api/v1/auth/refresh with valid refresh token returns new {access_token, refresh_token}",
-                                                   "Old refresh token is invalidated after rotation (replay returns 401)",
-                                                   "POST /api/v1/auth/logout sets revoked_at on session",
-                                                   "DELETE /api/v1/auth/sessions/{id} revokes the named session",
-                                                   "All actions emit an audit log entry",
-                                                   "Unit + integration tests for all three endpoints"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "AUTH-004",
-                        "phase":  2,
-                        "title":  "TOTP MFA enrollment and verification",
-                        "description":  "Implement TOTP MFA (RFC 6238): POST /api/v1/auth/mfa/totp/enroll (returns QR code URI and backup codes), POST /api/v1/auth/mfa/totp/confirm (verify first code), POST /api/v1/auth/mfa/verify (used during login).",
-                        "acceptanceCriteria":  [
-                                                   "POST /api/v1/auth/mfa/totp/enroll returns {otpauth_uri, backup_codes}",
-                                                   "POST /api/v1/auth/mfa/totp/confirm verifies the TOTP code and marks MFA enabled on user",
-                                                   "POST /api/v1/auth/mfa/verify accepts a valid TOTP code and completes login",
-                                                   "Invalid/expired codes return 401",
-                                                   "Backup codes are one-time-use and stored as bcrypt hashes",
-                                                   "Audit log entry on MFA enable/disable"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "AUTH-005",
-                        "phase":  2,
-                        "title":  "JWT auth middleware / FastAPI dependency",
-                        "description":  "Create a FastAPI dependency get_current_user that validates Bearer JWT access tokens on protected routes. Include role-based guards (require_role, require_admin).",
-                        "acceptanceCriteria":  [
-                                                   "get_current_user dependency validates RS256 JWT signature, exp, and iss claims",
-                                                   "Expired or invalid tokens return 401 with WWW-Authenticate header",
-                                                   "require_role(role) dependency returns 403 if user lacks the required role",
-                                                   "Dependency applied to all protected routes in AUTH, VAULT, ORG modules",
-                                                   "Unit tests cover valid token, expired token, wrong role scenarios"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "VAULT-001",
-                        "phase":  3,
-                        "title":  "Create vault item endpoint",
-                        "description":  "Implement POST /api/v1/vault/items. Accept encrypted_data (base64 ciphertext), encrypted_key (base64 wrapped DEK), type, name, folder_id (optional). The server stores without decrypting. Emit audit log on creation.",
-                        "acceptanceCriteria":  [
-                                                   "POST /api/v1/vault/items returns 201 with the created item (id, type, name, created_at)",
-                                                   "encrypted_data and encrypted_key stored verbatim in DB",
-                                                   "Server never attempts to decode/decrypt the blobs",
-                                                   "Audit log entry created with action=create_item",
-                                                   "Requires valid JWT (uses AUTH-005 dependency)",
-                                                   "Unit + integration tests"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "VAULT-002",
-                        "phase":  3,
-                        "title":  "Get, update, and soft-delete vault item endpoints",
-                        "description":  "Implement GET /api/v1/vault/items/{id}, PUT /api/v1/vault/items/{id}, DELETE /api/v1/vault/items/{id}. On update, save a VaultItemRevision before overwriting (keep last 10). On delete, set deleted_at. Emit audit log for each action.",
-                        "acceptanceCriteria":  [
-                                                   "GET /api/v1/vault/items/{id} returns item; emits view_item audit log",
-                                                   "Access to another user\u0027s item returns 403",
-                                                   "PUT updates encrypted_data/encrypted_key and creates a VaultItemRevision before saving",
-                                                   "Only the last 10 revisions are kept (older ones pruned)",
-                                                   "DELETE sets deleted_at; item excluded from list/sync queries",
-                                                   "Audit log entries for view, edit, delete actions",
-                                                   "Integration tests for all endpoints including 403 case"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "VAULT-003",
-                        "phase":  3,
-                        "title":  "Full vault sync and delta sync endpoints",
-                        "description":  "Implement GET /api/v1/vault (returns all non-deleted items for the authenticated user) and GET /api/v1/vault/sync?since= (returns only items updated since timestamp).",
-                        "acceptanceCriteria":  [
-                                                   "GET /api/v1/vault returns paginated list of all non-deleted items owned by current user",
-                                                   "GET /api/v1/vault/sync?since=\u003cISO8601\u003e returns only items with updated_at \u003e since",
-                                                   "Deleted items (deleted_at IS NOT NULL) excluded from both endpoints",
-                                                   "Response includes X-Vault-Revision header (monotonic counter)",
-                                                   "Integration tests seeding \u003e100 items and validating delta correctness"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "VAULT-004",
-                        "phase":  3,
-                        "title":  "Vault item revision history and restore endpoints",
-                        "description":  "Implement GET /api/v1/vault/items/{id}/history (list all revisions) and POST /api/v1/vault/items/{id}/restore (restore a revision by revision_number, creating a new revision of current state first).",
-                        "acceptanceCriteria":  [
-                                                   "GET /api/v1/vault/items/{id}/history returns list of revisions with revision_number, created_at",
-                                                   "POST /api/v1/vault/items/{id}/restore with {revision_number} restores the specified data",
-                                                   "Current state saved as a revision before restore overwrites",
-                                                   "Audit log entry for restore action",
-                                                   "Integration tests covering restore and subsequent history listing"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "VAULT-005",
-                        "phase":  3,
-                        "title":  "Folder management endpoints",
-                        "description":  "Implement CRUD endpoints for folders: POST /api/v1/vault/folders, GET /api/v1/vault/folders, PATCH /api/v1/vault/folders/{id}, DELETE /api/v1/vault/folders/{id}. Support nested folders (parent_folder_id).",
-                        "acceptanceCriteria":  [
-                                                   "POST creates a folder; optionally accepts parent_folder_id for nesting",
-                                                   "GET returns all folders for current user as a tree structure",
-                                                   "PATCH renames or moves a folder (changes parent_folder_id)",
-                                                   "DELETE cascades: items in folder set folder_id=NULL, child folders set parent_folder_id=NULL",
-                                                   "TypeCheck passes; unit + integration tests included"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "ORG-001",
-                        "phase":  4,
-                        "title":  "Organization creation and retrieval endpoints",
-                        "description":  "Implement POST /api/v1/org (create a new organization; first user becomes Owner) and GET /api/v1/org (get current org details for authenticated user).",
-                        "acceptanceCriteria":  [
-                                                   "POST /api/v1/org creates org, creates the calling user with role=owner",
-                                                   "GET /api/v1/org returns {id, name, subscription_tier, settings, created_at}",
-                                                   "Only org members can GET their own org",
-                                                   "Integration tests for creation and retrieval"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "ORG-002",
-                        "phase":  4,
-                        "title":  "User invitation and onboarding flow",
-                        "description":  "Implement POST /api/v1/org/users/invite (send invitation email with a signed magic link token). The invited user clicks the link, completes registration. User status transitions: invited â†’ active.",
-                        "acceptanceCriteria":  [
-                                                   "POST /api/v1/org/users/invite accepts {email, role} and creates a user row with status=invited",
-                                                   "Invitation token is a signed JWT (1-week expiry) stored as token_hash",
-                                                   "Invitation email is sent (stub/mock email service with env var toggle for tests)",
-                                                   "Accepting the invitation via the registration endpoint transitions status to active",
-                                                   "Expired or already-used tokens return 410 Gone",
-                                                   "Audit log entry for invite and accept actions"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "ORG-003",
-                        "phase":  4,
-                        "title":  "User management endpoints (list, role change, offboard)",
-                        "description":  "Implement GET /api/v1/org/users (list all users), PATCH /api/v1/org/users/{id}/role (change role), and DELETE /api/v1/org/users/{id} (offboard: status=suspended, revoke all sessions).",
-                        "acceptanceCriteria":  [
-                                                   "GET /api/v1/org/users paginated list with role/status filter query params",
-                                                   "PATCH /api/v1/org/users/{id}/role updates role; only admin/owner can call",
-                                                   "DELETE /api/v1/org/users/{id} sets status=suspended, revokes all active sessions",
-                                                   "Owner cannot be deleted; attempt returns 409",
-                                                   "Audit log entries for role change and offboarding",
-                                                   "Integration tests for all three endpoints"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "ORG-004",
-                        "phase":  4,
-                        "title":  "Groups management endpoints",
-                        "description":  "Implement POST /api/v1/org/groups (create group), GET /api/v1/org/groups (list), POST /api/v1/org/groups/{id}/members (add user), DELETE /api/v1/org/groups/{id}/members/{userId} (remove user).",
-                        "acceptanceCriteria":  [
-                                                   "groups table migration: id, org_id(FK), name, created_at",
-                                                   "group_members table: group_id(FK), user_id(FK), PRIMARY KEY(group_id, user_id)",
-                                                   "All four CRUD endpoints implemented and guarded by admin role",
-                                                   "Audit log entries for group creation and membership changes",
-                                                   "Unit + integration tests"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "ORG-005",
-                        "phase":  4,
-                        "title":  "Shared Collections endpoints",
-                        "description":  "Implement POST /api/v1/org/collections (create), POST /api/v1/org/collections/{id}/members (grant access with permission), DELETE /api/v1/org/collections/{id}/members/{memberId} (revoke). Items can be added to collections.",
-                        "acceptanceCriteria":  [
-                                                   "POST /api/v1/org/collections creates a collection scoped to current org",
-                                                   "POST /api/v1/org/collections/{id}/members grants view/edit/share/manage permission",
-                                                   "DELETE /api/v1/org/collections/{id}/members/{memberId} removes access",
-                                                   "POST /api/v1/org/collections/{id}/items adds a vault item to a collection",
-                                                   "Users can only read collection items they have at least view permission for",
-                                                   "Integration tests covering permission enforcement"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "AUDIT-001",
-                        "phase":  5,
-                        "title":  "Audit log query and export endpoints",
-                        "description":  "Implement GET /api/v1/audit/logs (paginated, filterable by actor, action, date range) and GET /api/v1/audit/logs/export (stream CSV/JSON). Only admins/owners can access.",
-                        "acceptanceCriteria":  [
-                                                   "GET /api/v1/audit/logs returns paginated results with filters: actor_id, action, start_date, end_date, page, per_page",
-                                                   "GET /api/v1/audit/logs/export?format=csv streams a downloadable CSV",
-                                                   "GET /api/v1/audit/logs/export?format=json streams newline-delimited JSON",
-                                                   "Non-admin users receive 403",
-                                                   "Integration tests with seeded audit data covering all filter combinations"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "AUDIT-002",
-                        "phase":  5,
-                        "title":  "Security health report endpoint",
-                        "description":  "Implement GET /api/v1/audit/reports/security which returns a security health score and breakdown: failed login count (last 30 days), MFA adoption rate, suspended accounts, over-shared items.",
-                        "acceptanceCriteria":  [
-                                                   "Endpoint returns JSON: {overall_score(0-100), failed_logins_30d, mfa_adoption_pct, suspended_accounts, over_shared_items}",
-                                                   "Score computed server-side from real DB data",
-                                                   "Only admin/owner can call; others receive 403",
-                                                   "Unit tests for score calculation logic",
-                                                   "Integration test with seeded data validates correctness"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "FE-001",
-                        "phase":  6,
-                        "title":  "Design system tokens and global CSS",
-                        "description":  "In packages/web, implement the VaultGuard design system: CSS custom properties for all design tokens. Load Inter and JetBrains Mono from Google Fonts. Implement a dark-mode-first theme.",
-                        "acceptanceCriteria":  [
-                                                   "CSS variables defined: --color-primary (#1A1F36), --color-accent (#6C63FF), --color-success (#0FB76B), --color-danger (#FF4D4D)",
-                                                   "Inter used for UI text; JetBrains Mono for password/secret fields",
-                                                   "Default theme is dark; light mode supported via prefers-color-scheme",
-                                                   "Base styles applied (reset, box-sizing, font smoothing)",
-                                                   "Dev server renders design tokens page without font/color issues"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "FE-002",
-                        "phase":  6,
-                        "title":  "Authentication pages (Login and MFA)",
-                        "description":  "Build the Login page (/login route) and MFA Verification page (/mfa). Use React Hook Form + Zod for validation. On successful login, store access token in Zustand and refresh token in httpOnly cookie. Redirect to /vault.",
-                        "acceptanceCriteria":  [
-                                                   "/login route renders email + password fields",
-                                                   "Form validation: email format, password required",
-                                                   "On success, calls POST /api/v1/auth/login and stores tokens",
-                                                   "If mfa_required in response, redirect to /mfa page",
-                                                   "/mfa page accepts TOTP code and calls POST /api/v1/auth/mfa/verify",
-                                                   "Invalid credentials show inline error without page reload",
-                                                   "Vitest unit tests for form validation logic"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "FE-003",
-                        "phase":  6,
-                        "title":  "Vault dashboard layout (3-panel)",
-                        "description":  "Build the main vault dashboard at /vault. 3-panel layout: left sidebar (folder/collection tree), center item list, right item detail panel. Responsive â€” sidebar collapses on mobile.",
-                        "acceptanceCriteria":  [
-                                                   "3-panel layout renders at 1440px; sidebar collapses at \u003c768px",
-                                                   "Sidebar shows folder tree fetched from GET /api/v1/vault/folders",
-                                                   "Center panel lists vault items from GET /api/v1/vault",
-                                                   "Clicking an item shows detail in right panel",
-                                                   "TanStack Query used for all data fetching with loading/error states",
-                                                   "Framer Motion fade-in animation on panel mount (respects prefers-reduced-motion)",
-                                                   "Vitest snapshot test for layout structure"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "FE-004",
-                        "phase":  6,
-                        "title":  "Vault item detail view with masked fields",
-                        "description":  "The right panel shows vault item details. Sensitive fields show â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢ by default. Reveal on click. Copy-to-clipboard button auto-clears clipboard after 30 seconds.",
-                        "acceptanceCriteria":  [
-                                                   "Password fields rendered as masked by default",
-                                                   "Click to reveal toggles visibility; eye icon reflects state",
-                                                   "Copy button copies decrypted value to clipboard",
-                                                   "Toast notification confirms copy; clipboard cleared after 30s",
-                                                   "JetBrains Mono font applied to secret values",
-                                                   "Keyboard accessible (Enter/Space on reveal button works)"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "FE-005",
-                        "phase":  6,
-                        "title":  "Create and edit vault item modal",
-                        "description":  "Build a modal (Radix UI Dialog) for creating and editing vault items. Support types: Login, Secure Note, Credit Card. Use React Hook Form + Zod. Encrypt data client-side with libsodium.js WASM before sending to API.",
-                        "acceptanceCriteria":  [
-                                                   "Modal opens with New Item button; pre-fills for edit",
-                                                   "Type selector switches fields (Login: username/password/URL; Note: text; Card: number/expiry/CVV)",
-                                                   "libsodium.js loaded via WASM; fields encrypted before POST/PUT",
-                                                   "Form validation with Zod schema for each item type",
-                                                   "Successful save closes modal and refreshes item list via TanStack Query invalidation",
-                                                   "Unit tests for libsodium encrypt/decrypt round-trip"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "FE-006",
-                        "phase":  6,
-                        "title":  "Password generator component",
-                        "description":  "Build a PasswordGenerator component usable in the item form and as a standalone page. Options: length (8-128), uppercase, lowercase, numbers, symbols, exclude ambiguous chars. Passphrase mode using EFF word list.",
-                        "acceptanceCriteria":  [
-                                                   "Slider for length (8-128) with live preview",
-                                                   "Toggles for uppercase, lowercase, numbers, symbols, exclude ambiguous",
-                                                   "Passphrase mode with word count selector (3-8 words) using bundled EFF word list",
-                                                   "Generated password shown in JetBrains Mono with strength indicator",
-                                                   "Copy button with 30s clipboard auto-clear",
-                                                   "Vitest unit tests for generation logic covering edge cases"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "FE-007",
-                        "phase":  6,
-                        "title":  "Onboarding flow (4-step wizard)",
-                        "description":  "Build the first-run onboarding wizard at /onboarding. Step 1: Set Master Password (Argon2id key derivation). Step 2: Enable MFA (QR code). Step 3: Install Browser Extension. Step 4: Import or skip.",
-                        "acceptanceCriteria":  [
-                                                   "Wizard at /onboarding with step indicator (1/4)",
-                                                   "Step 1: Master Password input with strength meter; derives keys client-side; calls registration API",
-                                                   "Step 2: Display TOTP QR code from enrollment API; verify first code before proceeding",
-                                                   "Step 3: Link to Chrome/Firefox extension store; Skip button available",
-                                                   "Step 4: CSV/JSON import drag-and-drop with basic parsing; Skip button available",
-                                                   "Wizard state persisted in sessionStorage (refresh-safe)",
-                                                   "Framer Motion slide transition between steps"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "FE-008",
-                        "phase":  6,
-                        "title":  "Admin panel â€” User management UI",
-                        "description":  "Build the /admin/users page. Display a table of all org users. Actions: Invite User (modal), Change Role (inline dropdown), Offboard (confirmation dialog).",
-                        "acceptanceCriteria":  [
-                                                   "Table renders all users fetched from GET /api/v1/org/users",
-                                                   "Invite User modal with email + role selector calls POST /api/v1/org/users/invite",
-                                                   "Role dropdown changes call PATCH /api/v1/org/users/{id}/role",
-                                                   "Offboard button shows Radix AlertDialog confirmation before calling DELETE",
-                                                   "Success/error feedback via toast notifications",
-                                                   "Route guarded: non-admin users redirected to /vault"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "EXT-001",
-                        "phase":  7,
-                        "title":  "Extension popup â€” login and vault search",
-                        "description":  "Build the 320x480px extension popup. Unauthenticated: shows login form. Authenticated: shows search box + list of matching credentials for current tab URL. Credentials loaded from background service worker cache.",
-                        "acceptanceCriteria":  [
-                                                   "Popup renders login form if no valid access token in chrome.storage.local",
-                                                   "Login calls API; stores token in chrome.storage.local",
-                                                   "Authenticated popup shows search input and credential list",
-                                                   "Credentials filtered to match current active tab\u0027s hostname",
-                                                   "Each credential row has: name, username, Fill button, Copy button",
-                                                   "Keyboard: Tab cycles through credentials; Enter fills first match"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "EXT-002",
-                        "phase":  7,
-                        "title":  "Background service worker â€” vault sync and cache",
-                        "description":  "Implement the MV3 background service worker. On install/wakeup, fetch vault from API and cache in chrome.storage.local. Refresh every 5 minutes (using chrome.alarms). Decrypt items on demand using session key held in memory.",
-                        "acceptanceCriteria":  [
-                                                   "background.js uses chrome.alarms to schedule sync every 5 minutes",
-                                                   "Vault data cached in chrome.storage.local as encrypted blobs",
-                                                   "Decryption key held only in service worker memory (not stored persistently)",
-                                                   "On vault lock, decryption key zeroed from memory",
-                                                   "Message passing: popup sends {type: \u0027GET_CREDENTIALS\u0027, hostname} and receives matching items"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "EXT-003",
-                        "phase":  7,
-                        "title":  "Content script â€” auto-detect and auto-fill login forms",
-                        "description":  "Implement the content script that detects login forms, shows an inline VaultGuard icon in password fields, and fills credentials on user request. Phishing protection: warn if current URL does not match the saved URI.",
-                        "acceptanceCriteria":  [
-                                                   "Content script detects \u003cinput type=password\u003e and injects VaultGuard icon",
-                                                   "Clicking icon requests matching credentials from background via chrome.runtime.sendMessage",
-                                                   "Fill button populates username and password fields using HTMLInputElement value setter + dispatchEvent",
-                                                   "If current URL hostname does not match saved URI hostname, show warning banner before filling",
-                                                   "Works on dynamic SPAs (MutationObserver for injected forms)",
-                                                   "Does NOT inject on chrome://, about://, or extension:// pages"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "SEC-001",
-                        "phase":  8,
-                        "title":  "HaveIBeenPwned breach detection (k-anonymity)",
-                        "description":  "Implement a backend proxy that checks passwords against the HIBP API using the k-anonymity model (send first 5 chars of SHA-1 hash only). Expose POST /api/v1/security/breach-check. Add frontend badge UI per item.",
-                        "acceptanceCriteria":  [
-                                                   "POST /api/v1/security/breach-check accepts {sha1_prefix: string (5 chars)} and proxies to HIBP Pwned Passwords API",
-                                                   "Server never receives the full hash or raw password",
-                                                   "Client sends only first 5 chars of SHA-1; server fetches range; returns count",
-                                                   "Frontend shows breach badge on vault items with count \u003e 0",
-                                                   "Integration test mocks HIBP API and validates k-anonymity compliance"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "SEC-002",
-                        "phase":  8,
-                        "title":  "Password security dashboard (weak, reused, breached)",
-                        "description":  "Build GET /api/v1/security/report (backend aggregate) and /security (frontend page). Report includes: breached count, weak count (entropy below threshold), reused count. Weakness/reuse detection is client-side.",
-                        "acceptanceCriteria":  [
-                                                   "Backend endpoint returns stats from stored metadata â€” never decrypts vault data",
-                                                   "Weakness and reuse detection performed client-side after vault sync",
-                                                   "Frontend /security page shows: overall score, 3 stat cards, item list grouped by issue",
-                                                   "Clicking an item navigates to its detail in the vault",
-                                                   "Data refreshes on vault sync"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "SEC-003",
-                        "phase":  8,
-                        "title":  "IP allowlist / blocklist middleware",
-                        "description":  "Implement IP-based access control as FastAPI middleware. Org admins configure allowed/blocked CIDR ranges via PATCH /api/v1/org/settings/ip-policy. Middleware checks client IP on every request after auth.",
-                        "acceptanceCriteria":  [
-                                                   "ip_policies table migration: id, org_id(FK), type(allow/block), cidr, created_by, created_at",
-                                                   "PATCH /api/v1/org/settings/ip-policy updates allow/blocklist",
-                                                   "Middleware validates X-Forwarded-For against org\u0027s policy",
-                                                   "Blocked IPs receive 403 with error code BLOCKED_IP",
-                                                   "Empty allowlist = allow all (opt-in restriction)",
-                                                   "Audit log entry for each blocked access attempt"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "SEC-004",
-                        "phase":  8,
-                        "title":  "Vault auto-lock and session timeout",
-                        "description":  "Frontend: implement configurable vault auto-lock after idle timeout (default 15 min). On lock, zero out the in-memory decryption key. Require master password re-entry to unlock. Backend: configurable session timeout policy per org.",
-                        "acceptanceCriteria":  [
-                                                   "Idle timer resets on any user interaction (mousemove, keypress, click)",
-                                                   "After timeout, vault items show as locked (blurred/masked)",
-                                                   "Unlock modal prompts for master password; re-derives key client-side",
-                                                   "Successful unlock resumes without page reload",
-                                                   "Backend: PATCH /api/v1/org/settings/session-policy {idle_timeout_minutes} stores policy",
-                                                   "Unit tests for idle timer and lock/unlock state machine"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "IO-001",
-                        "phase":  9,
-                        "title":  "CSV / JSON import (generic, 1Password, Bitwarden formats)",
-                        "description":  "Frontend import wizard accepts CSV and JSON files. Parse and map from generic CSV, 1Password CSV, and Bitwarden JSON into VaultItem format. Encrypt each item client-side and batch-upload to POST /api/v1/vault/items/batch.",
-                        "acceptanceCriteria":  [
-                                                   "POST /api/v1/vault/items/batch accepts array of up to 500 encrypted items; returns {created: N, failed: []}",
-                                                   "Frontend import modal: file picker, format selector, column mapping preview",
-                                                   "Parsing is 100% client-side (no raw passwords sent to server unencrypted)",
-                                                   "Progress bar shown during bulk upload",
-                                                   "Duplicate detection: items with same name+type warn user (skip or overwrite option)",
-                                                   "Unit tests for each parser format with sample fixture files"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "IO-002",
-                        "phase":  9,
-                        "title":  "Encrypted vault export",
-                        "description":  "Implement vault export in two formats: (1) VaultGuard encrypted JSON (server returns encrypted blobs; client bundles and downloads), (2) plaintext CSV (decrypted client-side with strong warning dialog).",
-                        "acceptanceCriteria":  [
-                                                   "GET /api/v1/vault/export returns all vault items as encrypted JSON stream",
-                                                   "Frontend Export modal offers: Encrypted JSON and Plaintext CSV",
-                                                   "Plaintext CSV shows a red confirmation dialog warning about unencrypted data",
-                                                   "Encrypted JSON export includes a format version header",
-                                                   "Export file triggers browser download with timestamp in filename",
-                                                   "Audit log entry for every export action"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "DEPLOY-001",
-                        "phase":  10,
-                        "title":  "Production Docker Compose (single-node deployment)",
-                        "description":  "Create docker-compose.prod.yml for single-node self-hosted deployment. Services: FastAPI (gunicorn+uvicorn), React via NGINX, MySQL 8.0, MinIO. NGINX handles TLS termination and reverse proxy.",
-                        "acceptanceCriteria":  [
-                                                   "docker-compose.prod.yml builds and starts all services",
-                                                   "NGINX config: TLS 1.3 only; HSTS; CSP; X-Frame-Options: DENY; CORS configured",
-                                                   "NGINX serves /api/* to FastAPI; /* to React static files",
-                                                   "MySQL data volume persists across container restarts",
-                                                   "MinIO data volume persists across container restarts",
-                                                   ".env.prod.example documents all required production secrets",
-                                                   "README.md deploy section describes 5-minute setup steps"
-                                               ],
-                        "passes":  false
-                    },
-                    {
-                        "id":  "DEPLOY-002",
-                        "phase":  10,
-                        "title":  "Helm chart for Kubernetes deployment (AKS)",
-                        "description":  "Create a Helm chart in deploy/helm/vaultguard/ with templates for: API Deployment, Web Deployment, Services, Ingress (NGINX), HorizontalPodAutoscaler, PersistentVolumeClaims, and ConfigMap/Secret.",
-                        "acceptanceCriteria":  [
-                                                   "helm lint passes with 0 errors",
-                                                   "helm template renders all expected Kubernetes resources",
-                                                   "values.yaml allows overriding: image tags, replica counts, resource limits, ingress host, TLS secret name",
-                                                   "HPA targets 70% CPU; min 2 replicas, max 10",
-                                                   "README in chart directory explains all values and upgrade procedure"
-                                               ],
-                        "passes":  false
-                    }
-                ]
+{
+    "project": "VaultGuard \u00e2\u20ac\u201d Enterprise Password Manager",
+    "version": "1.0.0",
+    "stories": [
+        {
+            "id": "INFRA-001",
+            "phase": 0,
+            "title": "Initialize monorepo with Turborepo",
+            "description": "Create a Turborepo monorepo at the repo root containing three workspaces: backend (Python/FastAPI), web (React/Vite), and extension (Vite/CRXJS). Add root package.json, turbo.json, .editorconfig, and .gitignore.",
+            "acceptanceCriteria": [
+                "turbo.json exists at repo root with build/lint/test pipelines defined",
+                "packages/backend, packages/web, packages/extension directories exist",
+                "Root npm install succeeds without errors",
+                "turbo run build executes (even if workspaces have empty stubs)"
+            ],
+            "passes": true
+        },
+        {
+            "id": "INFRA-002",
+            "phase": 0,
+            "title": "Docker Compose dev environment",
+            "description": "Create docker-compose.dev.yml that spins up MySQL 8.0, MinIO (S3-compatible object storage), and Redis (for session cache/rate limiting). Include health checks and document all required env vars in .env.example.",
+            "acceptanceCriteria": [
+                "docker-compose.dev.yml present at repo root",
+                "docker compose -f docker-compose.dev.yml up -d starts all services without errors",
+                ".env.example documents every env var consumed by docker-compose.dev.yml",
+                "MySQL health check passes (mysqladmin ping)",
+                "MinIO health check passes (/minio/health/live)"
+            ],
+            "passes": true
+        },
+        {
+            "id": "INFRA-003",
+            "phase": 0,
+            "title": "FastAPI backend skeleton with SQLAlchemy async + Alembic",
+            "description": "In packages/backend: initialize a FastAPI app with async SQLAlchemy (aiomysql driver), Alembic configured for async migrations, a /health endpoint, and a settings module that reads from environment variables via pydantic-settings.",
+            "acceptanceCriteria": [
+                "packages/backend/app/main.py exists and starts with uvicorn",
+                "GET /health returns {\"status\": \"ok\"}",
+                "alembic.ini and alembic/env.py present and configured for async",
+                "alembic upgrade head runs without error against the dev MySQL instance",
+                "pyproject.toml lists all dependencies with pinned versions"
+            ],
+            "passes": true
+        },
+        {
+            "id": "INFRA-004",
+            "phase": 0,
+            "title": "React + Vite frontend skeleton",
+            "description": "In packages/web: initialize a React 19 + TypeScript project using Vite 6. Install and configure Zustand, TanStack Query, TanStack Router, React Hook Form, Zod, Framer Motion, and Radix UI. Add a stub home page that compiles and renders.",
+            "acceptanceCriteria": [
+                "npm run dev in packages/web starts the dev server without errors",
+                "npm run build produces a dist/ folder",
+                "TypeScript typecheck (tsc --noEmit) passes with 0 errors",
+                "All listed libraries appear in package.json"
+            ],
+            "passes": true
+        },
+        {
+            "id": "INFRA-005",
+            "phase": 0,
+            "title": "Browser extension skeleton (Manifest V3)",
+            "description": "In packages/extension: initialize a Manifest V3 browser extension using Vite + CRXJS. Include a popup (popup.html/popup.tsx), a background service worker stub, and a content script stub. The extension must load in Chrome without errors.",
+            "acceptanceCriteria": [
+                "packages/extension/manifest.json is valid MV3",
+                "npm run build in packages/extension produces a dist/ folder loadable as an unpacked extension in Chrome",
+                "Popup renders a placeholder UI without console errors",
+                "TypeScript typecheck passes"
+            ],
+            "passes": true
+        },
+        {
+            "id": "INFRA-006",
+            "phase": 0,
+            "title": "GitHub Actions CI pipeline",
+            "description": "Create .github/workflows/ci.yml that on every PR: (1) runs Python tests (pytest), (2) runs frontend typecheck + Vitest, (3) runs OWASP Dependency-Check for Python and npm packages, and (4) runs Semgrep SAST with the OWASP ruleset.",
+            "acceptanceCriteria": [
+                ".github/workflows/ci.yml exists and is valid GitHub Actions YAML",
+                "All four jobs are defined: backend-test, frontend-check, dependency-scan, sast",
+                "Pipeline runs successfully on a stub PR",
+                "dependency-scan fails the build on HIGH/CRITICAL CVEs"
+            ],
+            "passes": true
+        },
+        {
+            "id": "DB-001",
+            "phase": 1,
+            "title": "Create Organization and User tables migration",
+            "description": "Write an Alembic migration that creates the organizations and users tables exactly as specified in the data model. Include all columns, types, indexes, and foreign keys. Use UUID primary keys.",
+            "acceptanceCriteria": [
+                "Migration file exists in alembic/versions/",
+                "alembic upgrade head creates both tables in MySQL",
+                "organizations: id(UUID PK), name, subscription_tier, settings(JSON), created_at",
+                "users: id(UUID PK), org_id(FK), email(unique), name, role(enum), status(enum), public_key, encrypted_private_key, master_password_hint, mfa_enabled, created_at",
+                "TypeCheck passes (no SQLAlchemy model type errors)"
+            ],
+            "passes": true
+        },
+        {
+            "id": "DB-002",
+            "phase": 1,
+            "title": "Create VaultItem and VaultItemRevision tables migration",
+            "description": "Write an Alembic migration for vault_items and vault_item_revisions. Include soft-delete (deleted_at), encrypted blob columns, and the full revision tracking schema.",
+            "acceptanceCriteria": [
+                "vault_items: id, owner_id(FK), org_id(FK), type(enum), encrypted_data, encrypted_key, name, folder_id(nullable FK), favorite, created_at, updated_at, deleted_at",
+                "vault_item_revisions: id, item_id(FK), encrypted_data, encrypted_key, revision_number, created_at",
+                "alembic upgrade head completes without error",
+                "Indexes on owner_id and org_id exist"
+            ],
+            "passes": true
+        },
+        {
+            "id": "DB-003",
+            "phase": 1,
+            "title": "Create Folder, Collection, CollectionMember tables migration",
+            "description": "Write an Alembic migration for folders, collections, and collection_members tables.",
+            "acceptanceCriteria": [
+                "folders: id, org_id(FK), owner_id(FK), parent_folder_id(nullable self-ref FK), name, created_at",
+                "collections: id, org_id(FK), name, created_by(FK\u00e2\u2020\u2019users), created_at",
+                "collection_members: collection_id(FK), user_or_group_id(UUID), permission(enum: view/edit/share/manage), PRIMARY KEY(collection_id, user_or_group_id)",
+                "alembic upgrade head completes without error"
+            ],
+            "passes": true
+        },
+        {
+            "id": "DB-004",
+            "phase": 1,
+            "title": "Create AuditLog and Session tables migration",
+            "description": "Write Alembic migrations for audit_logs and sessions. AuditLog must be append-only (no UPDATE). Sessions track JWT refresh tokens.",
+            "acceptanceCriteria": [
+                "audit_logs: id, org_id(FK), actor_id(FK\u00e2\u2020\u2019users), action(enum), target_id(nullable), ip_address, user_agent, geo_location, timestamp(NOT NULL, immutable)",
+                "sessions: id(UUID), user_id(FK), refresh_token_hash, device_info(JSON), ip_address, created_at, expires_at, revoked_at(nullable)",
+                "alembic upgrade head completes without error",
+                "Indexes on org_id+timestamp in audit_logs for fast range queries"
+            ],
+            "passes": true
+        },
+        {
+            "id": "AUTH-001",
+            "phase": 2,
+            "title": "User registration endpoint with Argon2id password hashing",
+            "description": "Implement POST /api/v1/auth/register. Use Argon2id (memory=65536 KB, iterations=3, parallelism=4) to hash the authentication verifier. Store the hash in the users table. Never store or log the raw password.",
+            "acceptanceCriteria": [
+                "POST /api/v1/auth/register with {email, name, org_id, auth_verifier, public_key, encrypted_private_key} returns 201",
+                "Password verifier stored as argon2id hash in DB",
+                "Raw auth_verifier never appears in logs",
+                "Duplicate email returns 409 with RFC 7807 error body",
+                "Unit tests cover happy path and duplicate email case",
+                "Integration test confirms DB row created correctly"
+            ],
+            "passes": true
+        },
+        {
+            "id": "AUTH-002",
+            "phase": 2,
+            "title": "Login endpoint with JWT access + refresh token issuance",
+            "description": "Implement POST /api/v1/auth/preauth (returns KDF params for user) and POST /api/v1/auth/login (verifies auth_verifier, issues RS256 JWT access token 15-min TTL + refresh token 7-day TTL). Refresh token hash stored in sessions table.",
+            "acceptanceCriteria": [
+                "POST /api/v1/auth/preauth returns {argon2_params} for the given email",
+                "POST /api/v1/auth/login with valid credentials returns {access_token, refresh_token, user}",
+                "Access token expires in 15 minutes (exp claim)",
+                "Refresh token hash stored in sessions table",
+                "Invalid credentials return 401 with consistent response time (no timing leak)",
+                "Rate limiting: >5 failed attempts from same IP returns 429",
+                "Unit tests for token generation and validation"
+            ],
+            "passes": true
+        },
+        {
+            "id": "AUTH-003",
+            "phase": 2,
+            "title": "Token refresh and logout endpoints",
+            "description": "Implement POST /api/v1/auth/refresh (rotate refresh token \u00e2\u20ac\u201d old one invalidated), POST /api/v1/auth/logout (revoke current session), and DELETE /api/v1/auth/sessions/{id} (revoke specific session).",
+            "acceptanceCriteria": [
+                "POST /api/v1/auth/refresh with valid refresh token returns new {access_token, refresh_token}",
+                "Old refresh token is invalidated after rotation (replay returns 401)",
+                "POST /api/v1/auth/logout sets revoked_at on session",
+                "DELETE /api/v1/auth/sessions/{id} revokes the named session",
+                "All actions emit an audit log entry",
+                "Unit + integration tests for all three endpoints"
+            ],
+            "passes": false
+        },
+        {
+            "id": "AUTH-004",
+            "phase": 2,
+            "title": "TOTP MFA enrollment and verification",
+            "description": "Implement TOTP MFA (RFC 6238): POST /api/v1/auth/mfa/totp/enroll (returns QR code URI and backup codes), POST /api/v1/auth/mfa/totp/confirm (verify first code), POST /api/v1/auth/mfa/verify (used during login).",
+            "acceptanceCriteria": [
+                "POST /api/v1/auth/mfa/totp/enroll returns {otpauth_uri, backup_codes}",
+                "POST /api/v1/auth/mfa/totp/confirm verifies the TOTP code and marks MFA enabled on user",
+                "POST /api/v1/auth/mfa/verify accepts a valid TOTP code and completes login",
+                "Invalid/expired codes return 401",
+                "Backup codes are one-time-use and stored as bcrypt hashes",
+                "Audit log entry on MFA enable/disable"
+            ],
+            "passes": false
+        },
+        {
+            "id": "AUTH-005",
+            "phase": 2,
+            "title": "JWT auth middleware / FastAPI dependency",
+            "description": "Create a FastAPI dependency get_current_user that validates Bearer JWT access tokens on protected routes. Include role-based guards (require_role, require_admin).",
+            "acceptanceCriteria": [
+                "get_current_user dependency validates RS256 JWT signature, exp, and iss claims",
+                "Expired or invalid tokens return 401 with WWW-Authenticate header",
+                "require_role(role) dependency returns 403 if user lacks the required role",
+                "Dependency applied to all protected routes in AUTH, VAULT, ORG modules",
+                "Unit tests cover valid token, expired token, wrong role scenarios"
+            ],
+            "passes": false
+        },
+        {
+            "id": "VAULT-001",
+            "phase": 3,
+            "title": "Create vault item endpoint",
+            "description": "Implement POST /api/v1/vault/items. Accept encrypted_data (base64 ciphertext), encrypted_key (base64 wrapped DEK), type, name, folder_id (optional). The server stores without decrypting. Emit audit log on creation.",
+            "acceptanceCriteria": [
+                "POST /api/v1/vault/items returns 201 with the created item (id, type, name, created_at)",
+                "encrypted_data and encrypted_key stored verbatim in DB",
+                "Server never attempts to decode/decrypt the blobs",
+                "Audit log entry created with action=create_item",
+                "Requires valid JWT (uses AUTH-005 dependency)",
+                "Unit + integration tests"
+            ],
+            "passes": false
+        },
+        {
+            "id": "VAULT-002",
+            "phase": 3,
+            "title": "Get, update, and soft-delete vault item endpoints",
+            "description": "Implement GET /api/v1/vault/items/{id}, PUT /api/v1/vault/items/{id}, DELETE /api/v1/vault/items/{id}. On update, save a VaultItemRevision before overwriting (keep last 10). On delete, set deleted_at. Emit audit log for each action.",
+            "acceptanceCriteria": [
+                "GET /api/v1/vault/items/{id} returns item; emits view_item audit log",
+                "Access to another user's item returns 403",
+                "PUT updates encrypted_data/encrypted_key and creates a VaultItemRevision before saving",
+                "Only the last 10 revisions are kept (older ones pruned)",
+                "DELETE sets deleted_at; item excluded from list/sync queries",
+                "Audit log entries for view, edit, delete actions",
+                "Integration tests for all endpoints including 403 case"
+            ],
+            "passes": false
+        },
+        {
+            "id": "VAULT-003",
+            "phase": 3,
+            "title": "Full vault sync and delta sync endpoints",
+            "description": "Implement GET /api/v1/vault (returns all non-deleted items for the authenticated user) and GET /api/v1/vault/sync?since= (returns only items updated since timestamp).",
+            "acceptanceCriteria": [
+                "GET /api/v1/vault returns paginated list of all non-deleted items owned by current user",
+                "GET /api/v1/vault/sync?since=<ISO8601> returns only items with updated_at > since",
+                "Deleted items (deleted_at IS NOT NULL) excluded from both endpoints",
+                "Response includes X-Vault-Revision header (monotonic counter)",
+                "Integration tests seeding >100 items and validating delta correctness"
+            ],
+            "passes": false
+        },
+        {
+            "id": "VAULT-004",
+            "phase": 3,
+            "title": "Vault item revision history and restore endpoints",
+            "description": "Implement GET /api/v1/vault/items/{id}/history (list all revisions) and POST /api/v1/vault/items/{id}/restore (restore a revision by revision_number, creating a new revision of current state first).",
+            "acceptanceCriteria": [
+                "GET /api/v1/vault/items/{id}/history returns list of revisions with revision_number, created_at",
+                "POST /api/v1/vault/items/{id}/restore with {revision_number} restores the specified data",
+                "Current state saved as a revision before restore overwrites",
+                "Audit log entry for restore action",
+                "Integration tests covering restore and subsequent history listing"
+            ],
+            "passes": false
+        },
+        {
+            "id": "VAULT-005",
+            "phase": 3,
+            "title": "Folder management endpoints",
+            "description": "Implement CRUD endpoints for folders: POST /api/v1/vault/folders, GET /api/v1/vault/folders, PATCH /api/v1/vault/folders/{id}, DELETE /api/v1/vault/folders/{id}. Support nested folders (parent_folder_id).",
+            "acceptanceCriteria": [
+                "POST creates a folder; optionally accepts parent_folder_id for nesting",
+                "GET returns all folders for current user as a tree structure",
+                "PATCH renames or moves a folder (changes parent_folder_id)",
+                "DELETE cascades: items in folder set folder_id=NULL, child folders set parent_folder_id=NULL",
+                "TypeCheck passes; unit + integration tests included"
+            ],
+            "passes": false
+        },
+        {
+            "id": "ORG-001",
+            "phase": 4,
+            "title": "Organization creation and retrieval endpoints",
+            "description": "Implement POST /api/v1/org (create a new organization; first user becomes Owner) and GET /api/v1/org (get current org details for authenticated user).",
+            "acceptanceCriteria": [
+                "POST /api/v1/org creates org, creates the calling user with role=owner",
+                "GET /api/v1/org returns {id, name, subscription_tier, settings, created_at}",
+                "Only org members can GET their own org",
+                "Integration tests for creation and retrieval"
+            ],
+            "passes": false
+        },
+        {
+            "id": "ORG-002",
+            "phase": 4,
+            "title": "User invitation and onboarding flow",
+            "description": "Implement POST /api/v1/org/users/invite (send invitation email with a signed magic link token). The invited user clicks the link, completes registration. User status transitions: invited \u00e2\u2020\u2019 active.",
+            "acceptanceCriteria": [
+                "POST /api/v1/org/users/invite accepts {email, role} and creates a user row with status=invited",
+                "Invitation token is a signed JWT (1-week expiry) stored as token_hash",
+                "Invitation email is sent (stub/mock email service with env var toggle for tests)",
+                "Accepting the invitation via the registration endpoint transitions status to active",
+                "Expired or already-used tokens return 410 Gone",
+                "Audit log entry for invite and accept actions"
+            ],
+            "passes": false
+        },
+        {
+            "id": "ORG-003",
+            "phase": 4,
+            "title": "User management endpoints (list, role change, offboard)",
+            "description": "Implement GET /api/v1/org/users (list all users), PATCH /api/v1/org/users/{id}/role (change role), and DELETE /api/v1/org/users/{id} (offboard: status=suspended, revoke all sessions).",
+            "acceptanceCriteria": [
+                "GET /api/v1/org/users paginated list with role/status filter query params",
+                "PATCH /api/v1/org/users/{id}/role updates role; only admin/owner can call",
+                "DELETE /api/v1/org/users/{id} sets status=suspended, revokes all active sessions",
+                "Owner cannot be deleted; attempt returns 409",
+                "Audit log entries for role change and offboarding",
+                "Integration tests for all three endpoints"
+            ],
+            "passes": false
+        },
+        {
+            "id": "ORG-004",
+            "phase": 4,
+            "title": "Groups management endpoints",
+            "description": "Implement POST /api/v1/org/groups (create group), GET /api/v1/org/groups (list), POST /api/v1/org/groups/{id}/members (add user), DELETE /api/v1/org/groups/{id}/members/{userId} (remove user).",
+            "acceptanceCriteria": [
+                "groups table migration: id, org_id(FK), name, created_at",
+                "group_members table: group_id(FK), user_id(FK), PRIMARY KEY(group_id, user_id)",
+                "All four CRUD endpoints implemented and guarded by admin role",
+                "Audit log entries for group creation and membership changes",
+                "Unit + integration tests"
+            ],
+            "passes": false
+        },
+        {
+            "id": "ORG-005",
+            "phase": 4,
+            "title": "Shared Collections endpoints",
+            "description": "Implement POST /api/v1/org/collections (create), POST /api/v1/org/collections/{id}/members (grant access with permission), DELETE /api/v1/org/collections/{id}/members/{memberId} (revoke). Items can be added to collections.",
+            "acceptanceCriteria": [
+                "POST /api/v1/org/collections creates a collection scoped to current org",
+                "POST /api/v1/org/collections/{id}/members grants view/edit/share/manage permission",
+                "DELETE /api/v1/org/collections/{id}/members/{memberId} removes access",
+                "POST /api/v1/org/collections/{id}/items adds a vault item to a collection",
+                "Users can only read collection items they have at least view permission for",
+                "Integration tests covering permission enforcement"
+            ],
+            "passes": false
+        },
+        {
+            "id": "AUDIT-001",
+            "phase": 5,
+            "title": "Audit log query and export endpoints",
+            "description": "Implement GET /api/v1/audit/logs (paginated, filterable by actor, action, date range) and GET /api/v1/audit/logs/export (stream CSV/JSON). Only admins/owners can access.",
+            "acceptanceCriteria": [
+                "GET /api/v1/audit/logs returns paginated results with filters: actor_id, action, start_date, end_date, page, per_page",
+                "GET /api/v1/audit/logs/export?format=csv streams a downloadable CSV",
+                "GET /api/v1/audit/logs/export?format=json streams newline-delimited JSON",
+                "Non-admin users receive 403",
+                "Integration tests with seeded audit data covering all filter combinations"
+            ],
+            "passes": false
+        },
+        {
+            "id": "AUDIT-002",
+            "phase": 5,
+            "title": "Security health report endpoint",
+            "description": "Implement GET /api/v1/audit/reports/security which returns a security health score and breakdown: failed login count (last 30 days), MFA adoption rate, suspended accounts, over-shared items.",
+            "acceptanceCriteria": [
+                "Endpoint returns JSON: {overall_score(0-100), failed_logins_30d, mfa_adoption_pct, suspended_accounts, over_shared_items}",
+                "Score computed server-side from real DB data",
+                "Only admin/owner can call; others receive 403",
+                "Unit tests for score calculation logic",
+                "Integration test with seeded data validates correctness"
+            ],
+            "passes": false
+        },
+        {
+            "id": "FE-001",
+            "phase": 6,
+            "title": "Design system tokens and global CSS",
+            "description": "In packages/web, implement the VaultGuard design system: CSS custom properties for all design tokens. Load Inter and JetBrains Mono from Google Fonts. Implement a dark-mode-first theme.",
+            "acceptanceCriteria": [
+                "CSS variables defined: --color-primary (#1A1F36), --color-accent (#6C63FF), --color-success (#0FB76B), --color-danger (#FF4D4D)",
+                "Inter used for UI text; JetBrains Mono for password/secret fields",
+                "Default theme is dark; light mode supported via prefers-color-scheme",
+                "Base styles applied (reset, box-sizing, font smoothing)",
+                "Dev server renders design tokens page without font/color issues"
+            ],
+            "passes": false
+        },
+        {
+            "id": "FE-002",
+            "phase": 6,
+            "title": "Authentication pages (Login and MFA)",
+            "description": "Build the Login page (/login route) and MFA Verification page (/mfa). Use React Hook Form + Zod for validation. On successful login, store access token in Zustand and refresh token in httpOnly cookie. Redirect to /vault.",
+            "acceptanceCriteria": [
+                "/login route renders email + password fields",
+                "Form validation: email format, password required",
+                "On success, calls POST /api/v1/auth/login and stores tokens",
+                "If mfa_required in response, redirect to /mfa page",
+                "/mfa page accepts TOTP code and calls POST /api/v1/auth/mfa/verify",
+                "Invalid credentials show inline error without page reload",
+                "Vitest unit tests for form validation logic"
+            ],
+            "passes": false
+        },
+        {
+            "id": "FE-003",
+            "phase": 6,
+            "title": "Vault dashboard layout (3-panel)",
+            "description": "Build the main vault dashboard at /vault. 3-panel layout: left sidebar (folder/collection tree), center item list, right item detail panel. Responsive \u00e2\u20ac\u201d sidebar collapses on mobile.",
+            "acceptanceCriteria": [
+                "3-panel layout renders at 1440px; sidebar collapses at <768px",
+                "Sidebar shows folder tree fetched from GET /api/v1/vault/folders",
+                "Center panel lists vault items from GET /api/v1/vault",
+                "Clicking an item shows detail in right panel",
+                "TanStack Query used for all data fetching with loading/error states",
+                "Framer Motion fade-in animation on panel mount (respects prefers-reduced-motion)",
+                "Vitest snapshot test for layout structure"
+            ],
+            "passes": false
+        },
+        {
+            "id": "FE-004",
+            "phase": 6,
+            "title": "Vault item detail view with masked fields",
+            "description": "The right panel shows vault item details. Sensitive fields show \u00e2\u20ac\u00a2\u00e2\u20ac\u00a2\u00e2\u20ac\u00a2\u00e2\u20ac\u00a2\u00e2\u20ac\u00a2\u00e2\u20ac\u00a2\u00e2\u20ac\u00a2\u00e2\u20ac\u00a2 by default. Reveal on click. Copy-to-clipboard button auto-clears clipboard after 30 seconds.",
+            "acceptanceCriteria": [
+                "Password fields rendered as masked by default",
+                "Click to reveal toggles visibility; eye icon reflects state",
+                "Copy button copies decrypted value to clipboard",
+                "Toast notification confirms copy; clipboard cleared after 30s",
+                "JetBrains Mono font applied to secret values",
+                "Keyboard accessible (Enter/Space on reveal button works)"
+            ],
+            "passes": false
+        },
+        {
+            "id": "FE-005",
+            "phase": 6,
+            "title": "Create and edit vault item modal",
+            "description": "Build a modal (Radix UI Dialog) for creating and editing vault items. Support types: Login, Secure Note, Credit Card. Use React Hook Form + Zod. Encrypt data client-side with libsodium.js WASM before sending to API.",
+            "acceptanceCriteria": [
+                "Modal opens with New Item button; pre-fills for edit",
+                "Type selector switches fields (Login: username/password/URL; Note: text; Card: number/expiry/CVV)",
+                "libsodium.js loaded via WASM; fields encrypted before POST/PUT",
+                "Form validation with Zod schema for each item type",
+                "Successful save closes modal and refreshes item list via TanStack Query invalidation",
+                "Unit tests for libsodium encrypt/decrypt round-trip"
+            ],
+            "passes": false
+        },
+        {
+            "id": "FE-006",
+            "phase": 6,
+            "title": "Password generator component",
+            "description": "Build a PasswordGenerator component usable in the item form and as a standalone page. Options: length (8-128), uppercase, lowercase, numbers, symbols, exclude ambiguous chars. Passphrase mode using EFF word list.",
+            "acceptanceCriteria": [
+                "Slider for length (8-128) with live preview",
+                "Toggles for uppercase, lowercase, numbers, symbols, exclude ambiguous",
+                "Passphrase mode with word count selector (3-8 words) using bundled EFF word list",
+                "Generated password shown in JetBrains Mono with strength indicator",
+                "Copy button with 30s clipboard auto-clear",
+                "Vitest unit tests for generation logic covering edge cases"
+            ],
+            "passes": false
+        },
+        {
+            "id": "FE-007",
+            "phase": 6,
+            "title": "Onboarding flow (4-step wizard)",
+            "description": "Build the first-run onboarding wizard at /onboarding. Step 1: Set Master Password (Argon2id key derivation). Step 2: Enable MFA (QR code). Step 3: Install Browser Extension. Step 4: Import or skip.",
+            "acceptanceCriteria": [
+                "Wizard at /onboarding with step indicator (1/4)",
+                "Step 1: Master Password input with strength meter; derives keys client-side; calls registration API",
+                "Step 2: Display TOTP QR code from enrollment API; verify first code before proceeding",
+                "Step 3: Link to Chrome/Firefox extension store; Skip button available",
+                "Step 4: CSV/JSON import drag-and-drop with basic parsing; Skip button available",
+                "Wizard state persisted in sessionStorage (refresh-safe)",
+                "Framer Motion slide transition between steps"
+            ],
+            "passes": false
+        },
+        {
+            "id": "FE-008",
+            "phase": 6,
+            "title": "Admin panel \u00e2\u20ac\u201d User management UI",
+            "description": "Build the /admin/users page. Display a table of all org users. Actions: Invite User (modal), Change Role (inline dropdown), Offboard (confirmation dialog).",
+            "acceptanceCriteria": [
+                "Table renders all users fetched from GET /api/v1/org/users",
+                "Invite User modal with email + role selector calls POST /api/v1/org/users/invite",
+                "Role dropdown changes call PATCH /api/v1/org/users/{id}/role",
+                "Offboard button shows Radix AlertDialog confirmation before calling DELETE",
+                "Success/error feedback via toast notifications",
+                "Route guarded: non-admin users redirected to /vault"
+            ],
+            "passes": false
+        },
+        {
+            "id": "EXT-001",
+            "phase": 7,
+            "title": "Extension popup \u00e2\u20ac\u201d login and vault search",
+            "description": "Build the 320x480px extension popup. Unauthenticated: shows login form. Authenticated: shows search box + list of matching credentials for current tab URL. Credentials loaded from background service worker cache.",
+            "acceptanceCriteria": [
+                "Popup renders login form if no valid access token in chrome.storage.local",
+                "Login calls API; stores token in chrome.storage.local",
+                "Authenticated popup shows search input and credential list",
+                "Credentials filtered to match current active tab's hostname",
+                "Each credential row has: name, username, Fill button, Copy button",
+                "Keyboard: Tab cycles through credentials; Enter fills first match"
+            ],
+            "passes": false
+        },
+        {
+            "id": "EXT-002",
+            "phase": 7,
+            "title": "Background service worker \u00e2\u20ac\u201d vault sync and cache",
+            "description": "Implement the MV3 background service worker. On install/wakeup, fetch vault from API and cache in chrome.storage.local. Refresh every 5 minutes (using chrome.alarms). Decrypt items on demand using session key held in memory.",
+            "acceptanceCriteria": [
+                "background.js uses chrome.alarms to schedule sync every 5 minutes",
+                "Vault data cached in chrome.storage.local as encrypted blobs",
+                "Decryption key held only in service worker memory (not stored persistently)",
+                "On vault lock, decryption key zeroed from memory",
+                "Message passing: popup sends {type: 'GET_CREDENTIALS', hostname} and receives matching items"
+            ],
+            "passes": false
+        },
+        {
+            "id": "EXT-003",
+            "phase": 7,
+            "title": "Content script \u00e2\u20ac\u201d auto-detect and auto-fill login forms",
+            "description": "Implement the content script that detects login forms, shows an inline VaultGuard icon in password fields, and fills credentials on user request. Phishing protection: warn if current URL does not match the saved URI.",
+            "acceptanceCriteria": [
+                "Content script detects <input type=password> and injects VaultGuard icon",
+                "Clicking icon requests matching credentials from background via chrome.runtime.sendMessage",
+                "Fill button populates username and password fields using HTMLInputElement value setter + dispatchEvent",
+                "If current URL hostname does not match saved URI hostname, show warning banner before filling",
+                "Works on dynamic SPAs (MutationObserver for injected forms)",
+                "Does NOT inject on chrome://, about://, or extension:// pages"
+            ],
+            "passes": false
+        },
+        {
+            "id": "SEC-001",
+            "phase": 8,
+            "title": "HaveIBeenPwned breach detection (k-anonymity)",
+            "description": "Implement a backend proxy that checks passwords against the HIBP API using the k-anonymity model (send first 5 chars of SHA-1 hash only). Expose POST /api/v1/security/breach-check. Add frontend badge UI per item.",
+            "acceptanceCriteria": [
+                "POST /api/v1/security/breach-check accepts {sha1_prefix: string (5 chars)} and proxies to HIBP Pwned Passwords API",
+                "Server never receives the full hash or raw password",
+                "Client sends only first 5 chars of SHA-1; server fetches range; returns count",
+                "Frontend shows breach badge on vault items with count > 0",
+                "Integration test mocks HIBP API and validates k-anonymity compliance"
+            ],
+            "passes": false
+        },
+        {
+            "id": "SEC-002",
+            "phase": 8,
+            "title": "Password security dashboard (weak, reused, breached)",
+            "description": "Build GET /api/v1/security/report (backend aggregate) and /security (frontend page). Report includes: breached count, weak count (entropy below threshold), reused count. Weakness/reuse detection is client-side.",
+            "acceptanceCriteria": [
+                "Backend endpoint returns stats from stored metadata \u00e2\u20ac\u201d never decrypts vault data",
+                "Weakness and reuse detection performed client-side after vault sync",
+                "Frontend /security page shows: overall score, 3 stat cards, item list grouped by issue",
+                "Clicking an item navigates to its detail in the vault",
+                "Data refreshes on vault sync"
+            ],
+            "passes": false
+        },
+        {
+            "id": "SEC-003",
+            "phase": 8,
+            "title": "IP allowlist / blocklist middleware",
+            "description": "Implement IP-based access control as FastAPI middleware. Org admins configure allowed/blocked CIDR ranges via PATCH /api/v1/org/settings/ip-policy. Middleware checks client IP on every request after auth.",
+            "acceptanceCriteria": [
+                "ip_policies table migration: id, org_id(FK), type(allow/block), cidr, created_by, created_at",
+                "PATCH /api/v1/org/settings/ip-policy updates allow/blocklist",
+                "Middleware validates X-Forwarded-For against org's policy",
+                "Blocked IPs receive 403 with error code BLOCKED_IP",
+                "Empty allowlist = allow all (opt-in restriction)",
+                "Audit log entry for each blocked access attempt"
+            ],
+            "passes": false
+        },
+        {
+            "id": "SEC-004",
+            "phase": 8,
+            "title": "Vault auto-lock and session timeout",
+            "description": "Frontend: implement configurable vault auto-lock after idle timeout (default 15 min). On lock, zero out the in-memory decryption key. Require master password re-entry to unlock. Backend: configurable session timeout policy per org.",
+            "acceptanceCriteria": [
+                "Idle timer resets on any user interaction (mousemove, keypress, click)",
+                "After timeout, vault items show as locked (blurred/masked)",
+                "Unlock modal prompts for master password; re-derives key client-side",
+                "Successful unlock resumes without page reload",
+                "Backend: PATCH /api/v1/org/settings/session-policy {idle_timeout_minutes} stores policy",
+                "Unit tests for idle timer and lock/unlock state machine"
+            ],
+            "passes": false
+        },
+        {
+            "id": "IO-001",
+            "phase": 9,
+            "title": "CSV / JSON import (generic, 1Password, Bitwarden formats)",
+            "description": "Frontend import wizard accepts CSV and JSON files. Parse and map from generic CSV, 1Password CSV, and Bitwarden JSON into VaultItem format. Encrypt each item client-side and batch-upload to POST /api/v1/vault/items/batch.",
+            "acceptanceCriteria": [
+                "POST /api/v1/vault/items/batch accepts array of up to 500 encrypted items; returns {created: N, failed: []}",
+                "Frontend import modal: file picker, format selector, column mapping preview",
+                "Parsing is 100% client-side (no raw passwords sent to server unencrypted)",
+                "Progress bar shown during bulk upload",
+                "Duplicate detection: items with same name+type warn user (skip or overwrite option)",
+                "Unit tests for each parser format with sample fixture files"
+            ],
+            "passes": false
+        },
+        {
+            "id": "IO-002",
+            "phase": 9,
+            "title": "Encrypted vault export",
+            "description": "Implement vault export in two formats: (1) VaultGuard encrypted JSON (server returns encrypted blobs; client bundles and downloads), (2) plaintext CSV (decrypted client-side with strong warning dialog).",
+            "acceptanceCriteria": [
+                "GET /api/v1/vault/export returns all vault items as encrypted JSON stream",
+                "Frontend Export modal offers: Encrypted JSON and Plaintext CSV",
+                "Plaintext CSV shows a red confirmation dialog warning about unencrypted data",
+                "Encrypted JSON export includes a format version header",
+                "Export file triggers browser download with timestamp in filename",
+                "Audit log entry for every export action"
+            ],
+            "passes": false
+        },
+        {
+            "id": "DEPLOY-001",
+            "phase": 10,
+            "title": "Production Docker Compose (single-node deployment)",
+            "description": "Create docker-compose.prod.yml for single-node self-hosted deployment. Services: FastAPI (gunicorn+uvicorn), React via NGINX, MySQL 8.0, MinIO. NGINX handles TLS termination and reverse proxy.",
+            "acceptanceCriteria": [
+                "docker-compose.prod.yml builds and starts all services",
+                "NGINX config: TLS 1.3 only; HSTS; CSP; X-Frame-Options: DENY; CORS configured",
+                "NGINX serves /api/* to FastAPI; /* to React static files",
+                "MySQL data volume persists across container restarts",
+                "MinIO data volume persists across container restarts",
+                ".env.prod.example documents all required production secrets",
+                "README.md deploy section describes 5-minute setup steps"
+            ],
+            "passes": false
+        },
+        {
+            "id": "DEPLOY-002",
+            "phase": 10,
+            "title": "Helm chart for Kubernetes deployment (AKS)",
+            "description": "Create a Helm chart in deploy/helm/vaultguard/ with templates for: API Deployment, Web Deployment, Services, Ingress (NGINX), HorizontalPodAutoscaler, PersistentVolumeClaims, and ConfigMap/Secret.",
+            "acceptanceCriteria": [
+                "helm lint passes with 0 errors",
+                "helm template renders all expected Kubernetes resources",
+                "values.yaml allows overriding: image tags, replica counts, resource limits, ingress host, TLS secret name",
+                "HPA targets 70% CPU; min 2 replicas, max 10",
+                "README in chart directory explains all values and upgrade procedure"
+            ],
+            "passes": false
+        }
+    ]
 }

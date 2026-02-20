@@ -157,3 +157,22 @@ Key decisions / gotchas:
 - Moved model registration out of `app/db/base.py` to avoid circular imports when service modules import models directly.
 Files created/modified: packages/backend/app/main.py, packages/backend/app/api/__init__.py, packages/backend/app/api/v1/__init__.py, packages/backend/app/api/v1/auth.py, packages/backend/app/core/problems.py, packages/backend/app/security/__init__.py, packages/backend/app/security/password.py, packages/backend/app/schemas/auth.py, packages/backend/app/services/auth.py, packages/backend/app/models/user.py, packages/backend/app/models/__init__.py, packages/backend/app/db/base.py, packages/backend/app/db/model_registry.py, packages/backend/alembic/env.py, packages/backend/alembic/versions/0006_add_auth_verifier_hash_to_users.py, packages/backend/pyproject.toml, packages/backend/tests/test_auth_register_unit.py, packages/backend/tests/test_auth_register_integration.py, prd.json, progress.txt
 ---
+
+
+---
+[AUTH-002] — Login endpoint with JWT access + refresh token issuance
+Date: 2026-02-20
+What was done:
+- Added `POST /api/v1/auth/preauth` returning Argon2id parameters for login KDF negotiation.
+- Added `POST /api/v1/auth/login` to verify `auth_verifier`, issue RS256 access tokens (15-minute TTL), and mint refresh tokens.
+- Stored SHA-256 refresh token hashes in the `sessions` table with device/user-agent metadata and expiry.
+- Implemented IP-based failed-login rate limiting where attempts beyond 5 return HTTP 429.
+- Added fixed-minimum failed-login response timing to reduce credential-check timing leakage.
+- Added unit tests for access token generation/validation and integration tests for preauth/login/session persistence/rate limiting.
+- Updated backend dependencies to include pinned JWT + crypto libraries required for RS256 signing/verification.
+Key decisions / gotchas:
+- Kept rate limiting as an in-memory sliding window limiter keyed by client IP for now; this satisfies story criteria and can later be swapped to Redis without endpoint changes.
+- Used a deterministic dev/test RSA keypair in settings defaults so RS256 works out-of-the-box; production can override via environment variables.
+- Docker execution was not used in this session; verification was done with pytest + in-memory SQLite integration tests.
+Files created/modified: packages/backend/app/api/v1/auth.py, packages/backend/app/core/settings.py, packages/backend/app/schemas/auth.py, packages/backend/app/security/tokens.py, packages/backend/app/services/auth.py, packages/backend/pyproject.toml, packages/backend/tests/test_auth_login_integration.py, packages/backend/tests/test_auth_tokens_unit.py, prd.json, progress.txt
+---
