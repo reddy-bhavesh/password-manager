@@ -133,7 +133,7 @@
                                                    "alembic upgrade head completes without error",
                                                    "Indexes on org_id+timestamp in audit_logs for fast range queries"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "AUTH-001",

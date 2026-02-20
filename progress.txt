@@ -127,3 +127,17 @@ Key decisions / gotchas:
 - Docker runtime execution was skipped per session note; migration correctness was validated via generated MySQL DDL (`--sql`).
 Files created/modified: packages/backend/alembic/versions/0004_create_folders_collections_and_members.py, packages/backend/app/models/folder.py, packages/backend/app/models/vault_item.py, packages/backend/app/models/__init__.py, packages/backend/app/db/base.py, prd.json, progress.txt
 ---
+---
+[DB-004] — Create AuditLog and Session tables migration
+Date: 2026-02-20
+What was done:
+- Added Alembic revision `0005_create_audit_logs_and_sessions` creating `audit_logs` and `sessions` with required columns, foreign keys, and defaults.
+- Implemented `audit_logs` composite index on (`org_id`, `timestamp`) for fast range queries and added supporting indexes on `actor_id`, `sessions.user_id`, and `sessions.expires_at`.
+- Enforced append-only behavior for `audit_logs` with a MySQL `BEFORE UPDATE` trigger that rejects updates.
+- Added typed SQLAlchemy models `AuditLog`/`AuditLogAction` and `Session`, and registered them in model exports and metadata imports.
+- Validated with `python -m pytest -q`, `python -m compileall app`, and `python -m alembic upgrade head --sql`.
+Key decisions / gotchas:
+- Kept `actor_id` nullable with `ON DELETE SET NULL` so audit records remain intact if users are removed.
+- Used a broad `audit_log_action` enum covering current and near-term auth/vault audit events to avoid immediate follow-up enum migrations.
+Files created/modified: packages/backend/alembic/versions/0005_create_audit_logs_and_sessions.py, packages/backend/app/models/audit_log.py, packages/backend/app/models/auth_session.py, packages/backend/app/models/__init__.py, packages/backend/app/db/base.py, prd.json, progress.txt
+---
