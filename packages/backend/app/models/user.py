@@ -47,6 +47,11 @@ class User(Base):
     public_key: Mapped[str] = mapped_column(Text, nullable=False)
     encrypted_private_key: Mapped[str] = mapped_column(Text, nullable=False)
     auth_verifier_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    invitation_token_hash: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    invitation_expires_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
     master_password_hint: Mapped[str | None] = mapped_column(String(255), nullable=True)
     mfa_enabled: Mapped[bool] = mapped_column(nullable=False, default=False, server_default="0")
     created_at: Mapped[datetime.datetime] = mapped_column(

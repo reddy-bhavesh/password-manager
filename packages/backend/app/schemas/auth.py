@@ -14,6 +14,7 @@ class RegisterRequest(BaseModel):
     auth_verifier: str = Field(min_length=8, max_length=4096)
     public_key: str = Field(min_length=1)
     encrypted_private_key: str = Field(min_length=1)
+    invitation_token: str | None = Field(default=None, min_length=32, max_length=4096)
 
 
 class RegisterUserResponse(BaseModel):

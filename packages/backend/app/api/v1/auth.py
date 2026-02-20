@@ -28,6 +28,7 @@ from app.services.auth import (
     DuplicateEmailError,
     InvalidMfaCodeError,
     InvalidMfaTokenError,
+    InvalidInvitationTokenError,
     InvalidCredentialsError,
     InvalidRefreshTokenError,
     MfaNotEnrolledError,
@@ -50,16 +51,31 @@ router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
 @router.post("/register", response_model=RegisterUserResponse, status_code=201)
 async def register(
     payload: RegisterRequest,
+    request: Request,
     db: AsyncSession = Depends(get_db_session),
 ) -> RegisterUserResponse:
+    client_ip = request.client.host if request.client and request.client.host else "0.0.0.0"
+    user_agent = request.headers.get("user-agent", "")
     try:
-        user = await register_user(db, payload)
+        user = await register_user(
+            db,
+            payload,
+            client_ip=client_ip,
+            user_agent=user_agent,
+        )
     except DuplicateEmailError:
         return problem_response(
             status=409,
             title="Conflict",
             detail="A user with this email already exists.",
             type_="https://vaultguard.dev/errors/duplicate-email",
+        )
+    except InvalidInvitationTokenError:
+        return problem_response(
+            status=410,
+            title="Gone",
+            detail="Invitation token is expired or has already been used.",
+            type_="https://vaultguard.dev/errors/invitation-gone",
         )
     return RegisterUserResponse.from_user(user)
 

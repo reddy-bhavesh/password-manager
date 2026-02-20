@@ -21,6 +21,10 @@ class MfaTokenValidationError(Exception):
     pass
 
 
+class InvitationTokenValidationError(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class AccessTokenPayload:
     sub: uuid.UUID
@@ -34,6 +38,18 @@ class AccessTokenPayload:
 
 @dataclass(frozen=True)
 class MfaTokenPayload:
+    sub: uuid.UUID
+    org_id: uuid.UUID
+    email: str
+    role: str
+    purpose: str
+    iat: datetime.datetime
+    exp: datetime.datetime
+    iss: str
+
+
+@dataclass(frozen=True)
+class InvitationTokenPayload:
     sub: uuid.UUID
     org_id: uuid.UUID
     email: str
@@ -85,6 +101,31 @@ def issue_mfa_token(
         "email": email,
         "role": role,
         "purpose": "mfa",
+        "iss": settings.jwt_issuer,
+        "iat": int(issued_at.timestamp()),
+        "exp": int(expiry.timestamp()),
+    }
+    token = jwt.encode(payload, settings.normalized_jwt_private_key, algorithm=ALGORITHM)
+    return token, expiry
+
+
+def issue_invitation_token(
+    *,
+    user_id: uuid.UUID,
+    org_id: uuid.UUID,
+    email: str,
+    role: str,
+    now: datetime.datetime | None = None,
+    expires_in: datetime.timedelta | None = None,
+) -> tuple[str, datetime.datetime]:
+    issued_at = now or datetime.datetime.now(datetime.UTC)
+    expiry = issued_at + (expires_in or datetime.timedelta(days=settings.invitation_token_ttl_days))
+    payload = {
+        "sub": str(user_id),
+        "org_id": str(org_id),
+        "email": email,
+        "role": role,
+        "purpose": "org_invite",
         "iss": settings.jwt_issuer,
         "iat": int(issued_at.timestamp()),
         "exp": int(expiry.timestamp()),
@@ -147,4 +188,35 @@ def validate_mfa_token(token: str) -> MfaTokenPayload:
 
     if decoded.purpose != "mfa":
         raise MfaTokenValidationError("invalid mfa token purpose")
+    return decoded
+
+
+def validate_invitation_token(token: str) -> InvitationTokenPayload:
+    try:
+        payload = jwt.decode(
+            token,
+            settings.normalized_jwt_public_key,
+            algorithms=[ALGORITHM],
+            issuer=settings.jwt_issuer,
+            options={"require": ["sub", "org_id", "email", "role", "purpose", "iat", "exp", "iss"]},
+        )
+    except InvalidTokenError as exc:
+        raise InvitationTokenValidationError("invalid invitation token") from exc
+
+    try:
+        decoded = InvitationTokenPayload(
+            sub=uuid.UUID(payload["sub"]),
+            org_id=uuid.UUID(payload["org_id"]),
+            email=str(payload["email"]),
+            role=str(payload["role"]),
+            purpose=str(payload["purpose"]),
+            iat=datetime.datetime.fromtimestamp(int(payload["iat"]), tz=datetime.UTC),
+            exp=datetime.datetime.fromtimestamp(int(payload["exp"]), tz=datetime.UTC),
+            iss=str(payload["iss"]),
+        )
+    except (ValueError, KeyError, TypeError) as exc:
+        raise InvitationTokenValidationError("malformed invitation token payload") from exc
+
+    if decoded.purpose != "org_invite":
+        raise InvitationTokenValidationError("invalid invitation token purpose")
     return decoded

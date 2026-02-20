@@ -308,3 +308,20 @@ Key decisions / gotchas:
 - Returned 403 on org retrieval when the authenticated user has no resolvable organization row, enforcing member-only access.
 Files created/modified: packages/backend/app/api/v1/org.py, packages/backend/app/schemas/org.py, packages/backend/app/services/org.py, packages/backend/app/main.py, packages/backend/tests/test_org_endpoints_integration.py, prd.json, progress.txt
 ---
+---
+[ORG-002] — User invitation and onboarding flow
+Date: 2026-02-20
+What was done:
+- Added `POST /api/v1/org/users/invite` with admin-role protection, invited-user creation (`status=invited`), signed invitation JWT issuance (1-week expiry), token-hash persistence, and invitation audit logging.
+- Added invitation acceptance to `POST /api/v1/auth/register` via optional `invitation_token`, including token signature/hash/expiry validation, invited->active status transition, and accept-invite audit logging.
+- Added a stub invitation email sender with environment toggle support and dependency injection for test mocking.
+- Added Alembic migration `0009_org_invitations_and_audit_actions` for new user invitation columns and audit action enum values.
+- Added integration tests for invite creation, invitation acceptance, already-used token handling (410), and expired token handling (410).
+- Updated backend test SQLite fixtures to include new invitation columns on `users` tables.
+- Verified with `python -m pytest -q packages/backend/tests`, `python -m compileall packages/backend/app`, and `python -m alembic upgrade head --sql`.
+Key decisions / gotchas:
+- Reused RS256 JWT infrastructure for invitation tokens with a dedicated `purpose=org_invite` claim to keep token validation consistent with existing auth flows.
+- Kept invite delivery as a stubbed email service with DI override so integration tests can assert “email sent” without external SMTP dependencies.
+- Treated invalid, expired, and previously used invitation tokens uniformly as `410 Gone` to satisfy acceptance criteria and reduce token-state leakage.
+Files created/modified: packages/backend/app/api/v1/org.py, packages/backend/app/api/v1/auth.py, packages/backend/app/core/settings.py, packages/backend/app/models/audit_log.py, packages/backend/app/models/user.py, packages/backend/app/schemas/auth.py, packages/backend/app/schemas/org.py, packages/backend/app/security/tokens.py, packages/backend/app/services/auth.py, packages/backend/app/services/org.py, packages/backend/app/services/email.py, packages/backend/alembic/versions/0009_org_invitations_and_audit_actions.py, packages/backend/tests/test_org_invitation_integration.py, packages/backend/tests/test_auth_dependencies_unit.py, packages/backend/tests/test_auth_login_integration.py, packages/backend/tests/test_auth_mfa_integration.py, packages/backend/tests/test_auth_register_integration.py, packages/backend/tests/test_auth_session_management_integration.py, packages/backend/tests/test_org_endpoints_integration.py, packages/backend/tests/test_vault_create_integration.py, packages/backend/tests/test_vault_folders_integration.py, packages/backend/tests/test_vault_item_lifecycle_integration.py, packages/backend/tests/test_vault_restore_history_integration.py, packages/backend/tests/test_vault_sync_integration.py, prd.json, progress.txt
+---

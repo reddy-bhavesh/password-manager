@@ -61,6 +61,8 @@ async def test_org_create_and_get_promotes_calling_user_to_owner() -> None:
                     public_key TEXT NOT NULL,
                     encrypted_private_key TEXT NOT NULL,
                     auth_verifier_hash TEXT NOT NULL,
+                    invitation_token_hash TEXT NULL,
+                    invitation_expires_at TEXT NULL,
                     master_password_hint TEXT NULL,
                     mfa_enabled INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -225,6 +227,8 @@ async def test_get_org_for_user_without_existing_org_returns_403() -> None:
                     public_key TEXT NOT NULL,
                     encrypted_private_key TEXT NOT NULL,
                     auth_verifier_hash TEXT NOT NULL,
+                    invitation_token_hash TEXT NULL,
+                    invitation_expires_at TEXT NULL,
                     master_password_hint TEXT NULL,
                     mfa_enabled INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -284,3 +288,4 @@ async def test_get_org_for_user_without_existing_org_returns_403() -> None:
     finally:
         app.dependency_overrides.clear()
         await engine.dispose()
+

@@ -309,7 +309,7 @@
                                                    "Expired or already-used tokens return 410 Gone",
                                                    "Audit log entry for invite and accept actions"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "ORG-003",

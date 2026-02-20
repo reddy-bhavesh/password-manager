@@ -74,6 +74,8 @@ async def test_get_current_user_allows_valid_access_token() -> None:
                     public_key TEXT NOT NULL,
                     encrypted_private_key TEXT NOT NULL,
                     auth_verifier_hash TEXT NOT NULL,
+                    invitation_token_hash TEXT NULL,
+                    invitation_expires_at TEXT NULL,
                     master_password_hint TEXT NULL,
                     mfa_enabled INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -213,6 +215,8 @@ async def test_require_admin_returns_403_for_non_admin_user() -> None:
                     public_key TEXT NOT NULL,
                     encrypted_private_key TEXT NOT NULL,
                     auth_verifier_hash TEXT NOT NULL,
+                    invitation_token_hash TEXT NULL,
+                    invitation_expires_at TEXT NULL,
                     master_password_hint TEXT NULL,
                     mfa_enabled INTEGER NOT NULL DEFAULT 0,
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -285,4 +289,5 @@ async def test_require_admin_returns_403_for_non_admin_user() -> None:
     finally:
         app.dependency_overrides.clear()
         await engine.dispose()
+
 

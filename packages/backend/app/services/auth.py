@@ -21,13 +21,15 @@ from app.models.audit_log import AuditLog, AuditLogAction
 from app.models.auth_session import Session
 from app.models.mfa_totp_credential import MfaTotpCredential
 from app.models.organization import Organization  # noqa: F401
-from app.models.user import User, UserStatus
+from app.models.user import User, UserRole, UserStatus
 from app.schemas.auth import LoginRequest, RegisterRequest
 from app.security.password import argon2_hasher
 from app.security.tokens import (
     AccessTokenValidationError,
+    InvitationTokenValidationError,
     MfaTokenValidationError,
     issue_access_token,
+    validate_invitation_token,
     issue_mfa_token,
     validate_access_token,
     validate_mfa_token,
@@ -42,6 +44,10 @@ class Hasher(Protocol):
 
 
 class DuplicateEmailError(Exception):
+    pass
+
+
+class InvalidInvitationTokenError(Exception):
     pass
 
 
@@ -152,13 +158,27 @@ async def register_user(
     db: AsyncSession,
     payload: RegisterRequest,
     hasher: Hasher = argon2_hasher,
+    *,
+    client_ip: str = "0.0.0.0",
+    user_agent: str = "",
+    now: datetime.datetime | None = None,
 ) -> User:
-    from app.models.organization import Organization  # noqa: F401
-    from app.models.user import UserRole
+    current_time = now or datetime.datetime.now(datetime.UTC)
+    normalized_email = payload.email.strip().lower()
+    if payload.invitation_token:
+        return await _register_invited_user(
+            db,
+            payload=payload,
+            normalized_email=normalized_email,
+            hasher=hasher,
+            current_time=current_time,
+            client_ip=client_ip,
+            user_agent=user_agent,
+        )
 
     user = User(
         org_id=payload.org_id,
-        email=payload.email.strip().lower(),
+        email=normalized_email,
         name=payload.name.strip(),
         role=UserRole.MEMBER,
         status=UserStatus.ACTIVE,
@@ -242,6 +262,73 @@ async def login_user(
         current_time=current_time,
     )
     return LoginResult(access_token=access_token, refresh_token=refresh_token, user=user)
+
+
+async def _register_invited_user(
+    db: AsyncSession,
+    *,
+    payload: RegisterRequest,
+    normalized_email: str,
+    hasher: Hasher,
+    current_time: datetime.datetime,
+    client_ip: str,
+    user_agent: str,
+) -> User:
+    invitation_token = payload.invitation_token
+    if invitation_token is None:
+        raise InvalidInvitationTokenError("invitation token is required")
+    try:
+        claims = validate_invitation_token(invitation_token)
+    except InvitationTokenValidationError as exc:
+        raise InvalidInvitationTokenError("invalid invitation token") from exc
+
+    invited_user = await db.get(User, claims.sub)
+    if invited_user is None:
+        raise InvalidInvitationTokenError("invalid invitation token")
+    if invited_user.status != UserStatus.INVITED:
+        raise InvalidInvitationTokenError("invitation is already used")
+    if invited_user.invitation_token_hash is None or invited_user.invitation_expires_at is None:
+        raise InvalidInvitationTokenError("invalid invitation token")
+    if not _uuids_equal(invited_user.org_id, claims.org_id):
+        raise InvalidInvitationTokenError("invalid invitation token")
+    if invited_user.email.strip().lower() != claims.email.strip().lower():
+        raise InvalidInvitationTokenError("invalid invitation token")
+    if invited_user.role.value != claims.role:
+        raise InvalidInvitationTokenError("invalid invitation token")
+
+    stored_expiry = invited_user.invitation_expires_at
+    if stored_expiry.tzinfo is None:
+        stored_expiry = stored_expiry.replace(tzinfo=datetime.UTC)
+    if stored_expiry <= current_time:
+        raise InvalidInvitationTokenError("invitation token expired")
+
+    token_hash = hashlib.sha256(invitation_token.encode("utf-8")).hexdigest()
+    if token_hash != invited_user.invitation_token_hash:
+        raise InvalidInvitationTokenError("invalid invitation token")
+    if normalized_email != invited_user.email.strip().lower():
+        raise InvalidInvitationTokenError("invalid invitation token")
+    if not _uuids_equal(payload.org_id, invited_user.org_id):
+        raise InvalidInvitationTokenError("invalid invitation token")
+
+    invited_user.name = payload.name.strip()
+    invited_user.public_key = payload.public_key
+    invited_user.encrypted_private_key = payload.encrypted_private_key
+    invited_user.auth_verifier_hash = hasher.hash(payload.auth_verifier)
+    invited_user.status = UserStatus.ACTIVE
+    invited_user.invitation_token_hash = None
+    invited_user.invitation_expires_at = None
+    await _append_audit_log(
+        db,
+        org_id=invited_user.org_id,
+        actor_id=invited_user.id,
+        action=AuditLogAction.ACCEPT_INVITE,
+        target_id=invited_user.id,
+        ip_address=client_ip,
+        user_agent=user_agent,
+    )
+    await db.commit()
+    await db.refresh(invited_user)
+    return invited_user
 
 
 async def enroll_totp_mfa(

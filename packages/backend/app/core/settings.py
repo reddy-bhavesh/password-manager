@@ -61,6 +61,9 @@ class Settings(BaseSettings):
     jwt_access_ttl_minutes: int = 15
     jwt_refresh_ttl_days: int = 7
     mfa_challenge_ttl_minutes: int = 5
+    invitation_token_ttl_days: int = 7
+    invitation_email_enabled: bool = False
+    invitation_link_base_url: str = "http://localhost:5173/invite/accept"
     jwt_private_key_pem: str = DEFAULT_JWT_PRIVATE_KEY
     jwt_public_key_pem: str = DEFAULT_JWT_PUBLIC_KEY
 

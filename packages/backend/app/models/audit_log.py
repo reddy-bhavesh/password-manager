@@ -23,6 +23,8 @@ class AuditLogAction(str, enum.Enum):
     MFA_ENABLE = "mfa_enable"
     MFA_DISABLE = "mfa_disable"
     SESSION_REVOKE = "session_revoke"
+    INVITE_USER = "invite_user"
+    ACCEPT_INVITE = "accept_invite"
 
 
 class AuditLog(Base):
