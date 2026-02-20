@@ -239,7 +239,7 @@
                                                    "Audit log entries for view, edit, delete actions",
                                                    "Integration tests for all endpoints including 403 case"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "VAULT-003",

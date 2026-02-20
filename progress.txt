@@ -235,3 +235,19 @@ Key decisions / gotchas:
 - Integration test schema needs the `folders` table present because `vault_items.folder_id` has a foreign key reference.
 Files created/modified: packages/backend/app/schemas/vault.py, packages/backend/app/services/vault.py, packages/backend/app/api/v1/vault.py, packages/backend/app/main.py, packages/backend/tests/test_vault_create_unit.py, packages/backend/tests/test_vault_create_integration.py, prd.json, progress.txt
 ---
+---
+[VAULT-002] — Get, update, and soft-delete vault item endpoints
+Date: 2026-02-20
+What was done:
+- Added protected `GET /api/v1/vault/items/{id}`, `PUT /api/v1/vault/items/{id}`, and `DELETE /api/v1/vault/items/{id}` endpoints using `get_current_user`.
+- Implemented owner-scoped access checks with explicit `403` for cross-user access and `404` for missing/soft-deleted items.
+- Added update flow that snapshots prior encrypted blobs into `vault_item_revisions`, increments revision number, and prunes to the last 10 revisions.
+- Implemented soft-delete by setting `deleted_at` (and `updated_at`) without hard deletion.
+- Added audit logging for `view_item`, `edit_item`, and `delete_item` actions.
+- Added integration test coverage for lifecycle behavior, revision retention, audit actions, and the `403` case.
+Key decisions / gotchas:
+- Reused the existing pattern of storing encrypted blobs verbatim and never decoding/decrypting server-side.
+- Treated soft-deleted items as not found in active-item lookups so they are excluded from subsequent item retrieval/sync paths.
+- Used UUID normalization in integration assertions because SQLite test storage can differ in UUID formatting.
+Files created/modified: packages/backend/app/services/vault.py, packages/backend/app/api/v1/vault.py, packages/backend/app/schemas/vault.py, packages/backend/tests/test_vault_item_lifecycle_integration.py, prd.json, progress.txt
+---
