@@ -1,0 +1,10 @@
+{
+  "name": "@vaultguard/auth-service",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "echo 'auth service is a Go project — build with go build'",
+    "lint": "echo 'auth service lint placeholder'",
+    "test": "echo 'auth service test placeholder'"
+  }
+}

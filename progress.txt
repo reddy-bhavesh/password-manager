@@ -1,0 +1,33 @@
+==============================================================================
+VaultGuard — Enterprise Password Manager — Development Progress
+==============================================================================
+
+---
+INFRA-001 — Initialize monorepo with Turborepo
+Date: 2026-02-20
+What was done:
+- Created root package.json with npm workspaces (apps/*, services/*, packages/*)
+- Created turbo.json with build, dev, lint, and test task pipelines
+- Scaffolded directory structure: apps/web, apps/extension, services/auth, services/vault, services/org, services/audit, packages/crypto, packages/shared-types
+- Created placeholder package.json files in each workspace so Turborepo discovers them
+- Created comprehensive .gitignore (Node, Go, Docker, IDE, OS files)
+- Installed turbo as root devDependency
+- Verified `npx turbo run build` completes successfully (8/8 tasks pass)
+Key decisions / gotchas:
+- Used manual scaffolding instead of `npx create-turbo` since the project directory already contained files (prd.json, PDR.md); create-turbo refuses to init in a non-empty directory
+- Go services (auth, vault, org, audit) have minimal package.json files with echo-based build/lint/test scripts so Turborepo can orchestrate them; actual Go tooling is set up in later stories (INFRA-003, etc.)
+- Turbo v2 uses "tasks" key (not "pipeline") in turbo.json — used the latest schema
+- packages/crypto and packages/shared-types have main/types fields set to dist/ anticipating TypeScript compilation in later stories
+Files created/modified:
+- package.json (root)
+- turbo.json
+- .gitignore
+- apps/web/package.json
+- apps/extension/package.json
+- services/auth/package.json
+- services/vault/package.json
+- services/org/package.json
+- services/audit/package.json
+- packages/crypto/package.json
+- packages/shared-types/package.json
+---

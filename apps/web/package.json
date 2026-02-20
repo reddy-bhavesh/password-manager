@@ -1,0 +1,11 @@
+{
+  "name": "@vaultguard/web",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "echo 'web build placeholder'",
+    "dev": "echo 'web dev placeholder'",
+    "lint": "echo 'web lint placeholder'",
+    "test": "echo 'web test placeholder'"
+  }
+}

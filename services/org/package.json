@@ -1,0 +1,10 @@
+{
+  "name": "@vaultguard/org-service",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "echo 'org service is a Go project — build with go build'",
+    "lint": "echo 'org service lint placeholder'",
+    "test": "echo 'org service test placeholder'"
+  }
+}

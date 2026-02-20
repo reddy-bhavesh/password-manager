@@ -1,0 +1,11 @@
+{
+  "name": "@vaultguard/extension",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "echo 'extension build placeholder'",
+    "dev": "echo 'extension dev placeholder'",
+    "lint": "echo 'extension lint placeholder'",
+    "test": "echo 'extension test placeholder'"
+  }
+}
