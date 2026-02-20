@@ -2,9 +2,31 @@
   "name": "@vaultguard/web",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "build": "node -e \"console.log('web build stub')\"",
-    "lint": "node -e \"console.log('web lint stub')\"",
-    "test": "node -e \"console.log('web test stub')\""
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "1.1.6",
+    "@tanstack/react-query": "5.66.8",
+    "@tanstack/react-router": "1.114.24",
+    "framer-motion": "11.18.2",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "react-hook-form": "7.54.2",
+    "zod": "3.24.2",
+    "zustand": "5.0.3"
+  },
+  "devDependencies": {
+    "@types/react": "19.0.10",
+    "@types/react-dom": "19.0.4",
+    "@vitejs/plugin-react": "4.3.4",
+    "typescript": "5.7.3",
+    "vite": "6.1.0",
+    "vitest": "3.0.4"
   }
 }
