@@ -40,7 +40,10 @@ class VaultItem(Base):
     encrypted_data: Mapped[str] = mapped_column(Text, nullable=False)
     encrypted_key: Mapped[str] = mapped_column(Text, nullable=False)
     name: Mapped[str] = mapped_column(String(255), nullable=False)
-    folder_id: Mapped[uuid.UUID | None] = mapped_column(nullable=True)
+    folder_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("folders.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     favorite: Mapped[bool] = mapped_column(
         Boolean,
         nullable=False,

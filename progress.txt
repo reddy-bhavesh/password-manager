@@ -113,3 +113,17 @@ Key decisions / gotchas:
 - Docker execution was not used; migration validity was verified through generated MySQL DDL (`--sql`) per environment constraints.
 Files created/modified: packages/backend/alembic/versions/0003_create_vault_items_and_revisions.py, packages/backend/app/models/vault_item.py, packages/backend/app/models/__init__.py, packages/backend/app/db/base.py, prd.json, progress.txt
 ---
+---
+[DB-003] - Create Folder, Collection, CollectionMember tables migration
+Date: 2026-02-20
+What was done:
+- Added Alembic revision `0004_create_folders_collections_and_members` to create `folders`, `collections`, and `collection_members` tables with required UUID keys, foreign keys, and enum permission values.
+- Implemented composite primary key on `collection_members` (`collection_id`, `user_or_group_id`) and added supporting indexes for folder hierarchy and ownership lookups.
+- Added the deferred foreign key from `vault_items.folder_id` to `folders.id` now that the `folders` table exists.
+- Added SQLAlchemy models for `Folder`, `Collection`, and `CollectionMember` with `CollectionPermission` enum, and registered them in model exports/metadata imports.
+- Verified with `python -m pytest -q`, `python -m compileall app`, and `python -m alembic upgrade head --sql`.
+Key decisions / gotchas:
+- Kept `parent_folder_id` and `vault_items.folder_id` as `ON DELETE SET NULL` to avoid recursive deletes when parent folders are removed.
+- Docker runtime execution was skipped per session note; migration correctness was validated via generated MySQL DDL (`--sql`).
+Files created/modified: packages/backend/alembic/versions/0004_create_folders_collections_and_members.py, packages/backend/app/models/folder.py, packages/backend/app/models/vault_item.py, packages/backend/app/models/__init__.py, packages/backend/app/db/base.py, prd.json, progress.txt
+---

@@ -120,7 +120,7 @@
                                                    "collection_members: collection_id(FK), user_or_group_id(UUID), permission(enum: view/edit/share/manage), PRIMARY KEY(collection_id, user_or_group_id)",
                                                    "alembic upgrade head completes without error"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "DB-004",
