@@ -5,7 +5,14 @@ import uuid
 
 import pytest
 
-from app.security.tokens import AccessTokenValidationError, issue_access_token, validate_access_token
+from app.security.tokens import (
+    AccessTokenValidationError,
+    MfaTokenValidationError,
+    issue_access_token,
+    issue_mfa_token,
+    validate_access_token,
+    validate_mfa_token,
+)
 
 
 def test_issue_and_validate_access_token_round_trip() -> None:
@@ -43,3 +50,41 @@ def test_validate_access_token_rejects_expired_token() -> None:
 
     with pytest.raises(AccessTokenValidationError):
         validate_access_token(token)
+
+
+def test_issue_and_validate_mfa_token_round_trip() -> None:
+    now = datetime.datetime.now(datetime.UTC).replace(microsecond=0)
+    user_id = uuid.uuid4()
+    org_id = uuid.uuid4()
+
+    token, expiry = issue_mfa_token(
+        user_id=user_id,
+        org_id=org_id,
+        email="mfa@example.com",
+        role="member",
+        now=now,
+    )
+    payload = validate_mfa_token(token)
+
+    assert payload.sub == user_id
+    assert payload.org_id == org_id
+    assert payload.email == "mfa@example.com"
+    assert payload.role == "member"
+    assert payload.purpose == "mfa"
+    assert payload.iss == "vaultguard"
+    assert payload.iat == now
+    assert payload.exp == expiry.replace(microsecond=0)
+
+
+def test_validate_mfa_token_rejects_expired_token() -> None:
+    token, _ = issue_mfa_token(
+        user_id=uuid.uuid4(),
+        org_id=uuid.uuid4(),
+        email="expired-mfa@example.com",
+        role="member",
+        now=datetime.datetime.now(datetime.UTC),
+        expires_in=datetime.timedelta(seconds=-1),
+    )
+
+    with pytest.raises(MfaTokenValidationError):
+        validate_mfa_token(token)

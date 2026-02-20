@@ -10,6 +10,8 @@ from collections import defaultdict, deque
 from dataclasses import dataclass
 from typing import Protocol
 
+import bcrypt
+import pyotp
 from argon2.exceptions import VerificationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import select
@@ -17,11 +19,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit_log import AuditLog, AuditLogAction
 from app.models.auth_session import Session
+from app.models.mfa_totp_credential import MfaTotpCredential
 from app.models.organization import Organization  # noqa: F401
 from app.models.user import User, UserStatus
 from app.schemas.auth import LoginRequest, RegisterRequest
 from app.security.password import argon2_hasher
-from app.security.tokens import AccessTokenValidationError, issue_access_token, validate_access_token
+from app.security.tokens import (
+    AccessTokenValidationError,
+    MfaTokenValidationError,
+    issue_access_token,
+    issue_mfa_token,
+    validate_access_token,
+    validate_mfa_token,
+)
 from app.core.settings import settings
 
 
@@ -55,11 +65,25 @@ class SessionNotFoundError(Exception):
     pass
 
 
+class InvalidMfaTokenError(Exception):
+    pass
+
+
+class InvalidMfaCodeError(Exception):
+    pass
+
+
+class MfaNotEnrolledError(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class LoginResult:
-    access_token: str
-    refresh_token: str
-    user: User
+    access_token: str | None
+    refresh_token: str | None
+    user: User | None
+    mfa_required: bool = False
+    mfa_token: str | None = None
 
 
 @dataclass(frozen=True)
@@ -68,10 +92,17 @@ class RefreshResult:
     refresh_token: str
 
 
+@dataclass(frozen=True)
+class MfaEnrollResult:
+    otpauth_uri: str
+    backup_codes: list[str]
+
+
 MAX_FAILED_ATTEMPTS = 5
 FAILED_ATTEMPTS_WINDOW_SECONDS = 60 * 15
 MIN_FAILED_LOGIN_RESPONSE_SECONDS = 0.2
 DUMMY_AUTH_VERIFIER_HASH = argon2_hasher.hash("vaultguard-dummy-auth-verifier")
+BACKUP_CODE_COUNT = 8
 
 
 class LoginRateLimiter:
@@ -187,6 +218,154 @@ async def login_user(
 
     await login_rate_limiter.reset(client_ip)
     current_time = now or datetime.datetime.now(datetime.UTC)
+    if user.mfa_enabled:
+        mfa_token, _ = issue_mfa_token(
+            user_id=user.id,
+            org_id=user.org_id,
+            email=user.email,
+            role=user.role.value,
+            now=current_time,
+        )
+        return LoginResult(
+            access_token=None,
+            refresh_token=None,
+            user=user,
+            mfa_required=True,
+            mfa_token=mfa_token,
+        )
+
+    access_token, refresh_token = await _issue_login_session(
+        db,
+        user=user,
+        client_ip=client_ip,
+        user_agent=user_agent,
+        current_time=current_time,
+    )
+    return LoginResult(access_token=access_token, refresh_token=refresh_token, user=user)
+
+
+async def enroll_totp_mfa(
+    db: AsyncSession,
+    *,
+    access_token: str,
+) -> MfaEnrollResult:
+    current_user = await get_user_from_access_token(db, access_token)
+    secret = pyotp.random_base32()
+    backup_codes = [_generate_backup_code() for _ in range(BACKUP_CODE_COUNT)]
+    backup_hashes = [_hash_backup_code(code) for code in backup_codes]
+
+    credential = await db.get(MfaTotpCredential, current_user.id)
+    if credential is None:
+        credential = MfaTotpCredential(
+            user_id=current_user.id,
+            org_id=current_user.org_id,
+            totp_secret=secret,
+            backup_code_hashes=backup_hashes,
+            confirmed_at=None,
+        )
+        db.add(credential)
+    else:
+        credential.totp_secret = secret
+        credential.backup_code_hashes = backup_hashes
+        credential.confirmed_at = None
+    current_user.mfa_enabled = False
+    await db.commit()
+
+    uri = pyotp.TOTP(secret).provisioning_uri(name=current_user.email, issuer_name="VaultGuard")
+    return MfaEnrollResult(otpauth_uri=uri, backup_codes=backup_codes)
+
+
+async def confirm_totp_mfa(
+    db: AsyncSession,
+    *,
+    access_token: str,
+    code: str,
+    client_ip: str,
+    user_agent: str,
+    now: datetime.datetime | None = None,
+) -> None:
+    current_time = now or datetime.datetime.now(datetime.UTC)
+    current_user = await get_user_from_access_token(db, access_token)
+    credential = await db.get(MfaTotpCredential, current_user.id)
+    if credential is None:
+        raise MfaNotEnrolledError("mfa is not enrolled")
+    if not _verify_totp_code(credential.totp_secret, code):
+        raise InvalidMfaCodeError("invalid mfa code")
+
+    credential.confirmed_at = current_time
+    current_user.mfa_enabled = True
+    await _append_audit_log(
+        db,
+        org_id=current_user.org_id,
+        actor_id=current_user.id,
+        action=AuditLogAction.MFA_ENABLE,
+        target_id=current_user.id,
+        ip_address=client_ip,
+        user_agent=user_agent,
+    )
+    await db.commit()
+
+
+async def verify_mfa_and_issue_tokens(
+    db: AsyncSession,
+    *,
+    mfa_token: str,
+    code: str,
+    client_ip: str,
+    user_agent: str,
+    now: datetime.datetime | None = None,
+) -> LoginResult:
+    current_time = now or datetime.datetime.now(datetime.UTC)
+    try:
+        claims = validate_mfa_token(mfa_token)
+    except MfaTokenValidationError as exc:
+        raise InvalidMfaTokenError("invalid mfa token") from exc
+
+    user = await _find_active_user_by_identifier(db, claims.sub)
+    if (
+        user is None
+        or user.status != UserStatus.ACTIVE
+        or not user.mfa_enabled
+        or user.email != claims.email
+        or not _uuids_equal(user.org_id, claims.org_id)
+    ):
+        raise InvalidMfaTokenError("invalid mfa token")
+
+    credential = await db.get(MfaTotpCredential, user.id)
+    if credential is None or credential.confirmed_at is None:
+        raise MfaNotEnrolledError("mfa is not enrolled")
+
+    if _verify_totp_code(credential.totp_secret, code):
+        access_token, refresh_token = await _issue_login_session(
+            db,
+            user=user,
+            client_ip=client_ip,
+            user_agent=user_agent,
+            current_time=current_time,
+        )
+        return LoginResult(access_token=access_token, refresh_token=refresh_token, user=user)
+
+    if _consume_backup_code(credential, code):
+        access_token, refresh_token = await _issue_login_session(
+            db,
+            user=user,
+            client_ip=client_ip,
+            user_agent=user_agent,
+            current_time=current_time,
+        )
+        return LoginResult(access_token=access_token, refresh_token=refresh_token, user=user)
+
+    raise InvalidMfaCodeError("invalid mfa code")
+
+
+async def _issue_login_session(
+    db: AsyncSession,
+    *,
+    user: User,
+    client_ip: str,
+    user_agent: str,
+    current_time: datetime.datetime,
+) -> tuple[str, str]:
     access_token, _ = issue_access_token(
         user_id=user.id,
         org_id=user.org_id,
@@ -216,7 +395,7 @@ async def login_user(
         user_agent=user_agent,
     )
     await db.commit()
-    return LoginResult(access_token=access_token, refresh_token=refresh_token, user=user)
+    return access_token, refresh_token
 
 
 async def refresh_tokens(
@@ -429,3 +608,38 @@ async def _verify_dummy_auth_verifier(auth_verifier: str, hasher: Hasher) -> Non
         hasher.verify(DUMMY_AUTH_VERIFIER_HASH, auth_verifier)
     except Exception:
         return
+
+
+def _verify_totp_code(secret: str, code: str) -> bool:
+    normalized_code = "".join(ch for ch in code.strip() if ch.isdigit())
+    if not normalized_code:
+        return False
+    return bool(pyotp.TOTP(secret).verify(normalized_code, valid_window=1))
+
+
+def _hash_backup_code(code: str) -> str:
+    return bcrypt.hashpw(_normalize_backup_code(code).encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def _generate_backup_code() -> str:
+    alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
+    raw = "".join(secrets.choice(alphabet) for _ in range(10))
+    return f"{raw[:5]}-{raw[5:]}"
+
+
+def _normalize_backup_code(code: str) -> str:
+    return "".join(ch for ch in code.strip().upper() if ch.isalnum())
+
+
+def _consume_backup_code(credential: MfaTotpCredential, candidate_code: str) -> bool:
+    normalized = _normalize_backup_code(candidate_code).encode("utf-8")
+    remaining_hashes: list[str] = []
+    consumed = False
+    for hashed in credential.backup_code_hashes:
+        if not consumed and bcrypt.checkpw(normalized, hashed.encode("utf-8")):
+            consumed = True
+            continue
+        remaining_hashes.append(hashed)
+    if consumed:
+        credential.backup_code_hashes = remaining_hashes
+    return consumed

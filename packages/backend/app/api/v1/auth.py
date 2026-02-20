@@ -10,6 +10,10 @@ from app.schemas.auth import (
     AuthenticatedUserResponse,
     LoginRequest,
     LoginResponse,
+    MfaTotpConfirmRequest,
+    MfaTotpConfirmResponse,
+    MfaTotpEnrollResponse,
+    MfaVerifyRequest,
     LogoutRequest,
     PreauthRequest,
     PreauthResponse,
@@ -20,11 +24,17 @@ from app.schemas.auth import (
 )
 from app.services.auth import (
     DuplicateEmailError,
+    InvalidMfaCodeError,
+    InvalidMfaTokenError,
     InvalidAccessTokenError,
     InvalidCredentialsError,
     InvalidRefreshTokenError,
+    MfaNotEnrolledError,
     SessionNotFoundError,
     TooManyAttemptsError,
+    confirm_totp_mfa,
+    enroll_totp_mfa,
+    verify_mfa_and_issue_tokens,
     refresh_tokens,
     login_user,
     register_user,
@@ -110,7 +120,9 @@ async def login(
     return LoginResponse(
         access_token=result.access_token,
         refresh_token=result.refresh_token,
-        user=AuthenticatedUserResponse.from_user(result.user),
+        user=AuthenticatedUserResponse.from_user(result.user) if result.user is not None else None,
+        mfa_required=result.mfa_required,
+        mfa_token=result.mfa_token,
     )
 
 
@@ -208,3 +220,111 @@ async def revoke_session(
             type_="https://vaultguard.dev/errors/session-not-found",
         )
     return None
+
+
+@router.post("/mfa/totp/enroll", response_model=MfaTotpEnrollResponse)
+async def enroll_mfa_totp(
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db_session),
+) -> MfaTotpEnrollResponse:
+    try:
+        access_token = _extract_bearer_token(authorization)
+        result = await enroll_totp_mfa(db, access_token=access_token)
+    except InvalidAccessTokenError:
+        return problem_response(
+            status=401,
+            title="Unauthorized",
+            detail="Invalid access token.",
+            type_="https://vaultguard.dev/errors/invalid-access-token",
+        )
+
+    return MfaTotpEnrollResponse(otpauth_uri=result.otpauth_uri, backup_codes=result.backup_codes)
+
+
+@router.post("/mfa/totp/confirm", response_model=MfaTotpConfirmResponse)
+async def confirm_mfa_totp(
+    payload: MfaTotpConfirmRequest,
+    request: Request,
+    authorization: str | None = Header(default=None),
+    db: AsyncSession = Depends(get_db_session),
+) -> MfaTotpConfirmResponse:
+    client_ip = request.client.host if request.client and request.client.host else "0.0.0.0"
+    user_agent = request.headers.get("user-agent", "")
+    try:
+        access_token = _extract_bearer_token(authorization)
+        await confirm_totp_mfa(
+            db,
+            access_token=access_token,
+            code=payload.code,
+            client_ip=client_ip,
+            user_agent=user_agent,
+        )
+    except InvalidAccessTokenError:
+        return problem_response(
+            status=401,
+            title="Unauthorized",
+            detail="Invalid access token.",
+            type_="https://vaultguard.dev/errors/invalid-access-token",
+        )
+    except MfaNotEnrolledError:
+        return problem_response(
+            status=404,
+            title="Not Found",
+            detail="MFA enrollment not found.",
+            type_="https://vaultguard.dev/errors/mfa-not-enrolled",
+        )
+    except InvalidMfaCodeError:
+        return problem_response(
+            status=401,
+            title="Unauthorized",
+            detail="Invalid or expired MFA code.",
+            type_="https://vaultguard.dev/errors/invalid-mfa-code",
+        )
+    return MfaTotpConfirmResponse(mfa_enabled=True)
+
+
+@router.post("/mfa/verify", response_model=LoginResponse)
+async def verify_mfa(
+    payload: MfaVerifyRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db_session),
+) -> LoginResponse:
+    client_ip = request.client.host if request.client and request.client.host else "0.0.0.0"
+    user_agent = request.headers.get("user-agent", "")
+    try:
+        result = await verify_mfa_and_issue_tokens(
+            db,
+            mfa_token=payload.mfa_token,
+            code=payload.code,
+            client_ip=client_ip,
+            user_agent=user_agent,
+        )
+    except InvalidMfaTokenError:
+        return problem_response(
+            status=401,
+            title="Unauthorized",
+            detail="Invalid or expired MFA challenge token.",
+            type_="https://vaultguard.dev/errors/invalid-mfa-token",
+        )
+    except MfaNotEnrolledError:
+        return problem_response(
+            status=401,
+            title="Unauthorized",
+            detail="MFA is not enabled for this account.",
+            type_="https://vaultguard.dev/errors/mfa-not-enabled",
+        )
+    except InvalidMfaCodeError:
+        return problem_response(
+            status=401,
+            title="Unauthorized",
+            detail="Invalid or expired MFA code.",
+            type_="https://vaultguard.dev/errors/invalid-mfa-code",
+        )
+
+    return LoginResponse(
+        access_token=result.access_token,
+        refresh_token=result.refresh_token,
+        user=AuthenticatedUserResponse.from_user(result.user) if result.user is not None else None,
+        mfa_required=False,
+        mfa_token=None,
+    )

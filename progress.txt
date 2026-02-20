@@ -188,3 +188,19 @@ Key decisions / gotchas:
 - Docker execution was not used in this session; verification was done with pytest + in-memory SQLite integration tests.
 Files created/modified: packages/backend/app/api/v1/auth.py, packages/backend/app/core/settings.py, packages/backend/app/schemas/auth.py, packages/backend/app/security/tokens.py, packages/backend/app/services/auth.py, packages/backend/pyproject.toml, packages/backend/tests/test_auth_login_integration.py, packages/backend/tests/test_auth_tokens_unit.py, prd.json, progress.txt
 ---
+---
+[AUTH-004] — TOTP MFA enrollment and verification
+Date: 2026-02-20
+What was done:
+- Added TOTP MFA domain support with persistent enrollment records, backup-code hashing, and confirmation state tracking.
+- Implemented `POST /api/v1/auth/mfa/totp/enroll` to generate and return `{otpauth_uri, backup_codes}` while storing only bcrypt-hashed backup codes.
+- Implemented `POST /api/v1/auth/mfa/totp/confirm` to verify first TOTP code, enable MFA on the user, and emit an `MFA_ENABLE` audit log.
+- Updated login flow so MFA-enabled users receive an MFA challenge token instead of immediate session tokens.
+- Implemented `POST /api/v1/auth/mfa/verify` to validate TOTP/backup code and complete login by issuing access/refresh tokens.
+- Added migration `0007_create_mfa_totp_credentials` and comprehensive token + integration tests for MFA flow and backup-code one-time use.
+Key decisions / gotchas:
+- Introduced short-lived JWT MFA challenge tokens (`purpose=mfa`) to keep the login and MFA verification steps stateless.
+- Kept backup codes server-side as bcrypt hashes only; normalized codes during verification to make one-time consumption deterministic.
+- Kept existing AUTH-002 behavior unchanged for non-MFA users by making login response token fields nullable only when MFA is required.
+Files created/modified: packages/backend/app/models/mfa_totp_credential.py, packages/backend/alembic/versions/0007_create_mfa_totp_credentials.py, packages/backend/app/db/model_registry.py, packages/backend/app/core/settings.py, packages/backend/app/security/tokens.py, packages/backend/app/services/auth.py, packages/backend/app/schemas/auth.py, packages/backend/app/api/v1/auth.py, packages/backend/tests/test_auth_mfa_integration.py, packages/backend/tests/test_auth_tokens_unit.py, packages/backend/pyproject.toml, prd.json, progress.txt
+---

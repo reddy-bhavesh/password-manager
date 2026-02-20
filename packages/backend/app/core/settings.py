@@ -60,6 +60,7 @@ class Settings(BaseSettings):
     jwt_issuer: str = "vaultguard"
     jwt_access_ttl_minutes: int = 15
     jwt_refresh_ttl_days: int = 7
+    mfa_challenge_ttl_minutes: int = 5
     jwt_private_key_pem: str = DEFAULT_JWT_PRIVATE_KEY
     jwt_public_key_pem: str = DEFAULT_JWT_PUBLIC_KEY
 

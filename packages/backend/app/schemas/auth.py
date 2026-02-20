@@ -79,9 +79,11 @@ class AuthenticatedUserResponse(BaseModel):
 
 
 class LoginResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    user: AuthenticatedUserResponse
+    access_token: str | None = None
+    refresh_token: str | None = None
+    user: AuthenticatedUserResponse | None = None
+    mfa_required: bool = False
+    mfa_token: str | None = None
 
 
 class RefreshRequest(BaseModel):
@@ -95,3 +97,21 @@ class RefreshResponse(BaseModel):
 
 class LogoutRequest(BaseModel):
     refresh_token: str = Field(min_length=16, max_length=4096)
+
+
+class MfaTotpEnrollResponse(BaseModel):
+    otpauth_uri: str
+    backup_codes: list[str]
+
+
+class MfaTotpConfirmRequest(BaseModel):
+    code: str = Field(min_length=6, max_length=64)
+
+
+class MfaTotpConfirmResponse(BaseModel):
+    mfa_enabled: bool
+
+
+class MfaVerifyRequest(BaseModel):
+    mfa_token: str = Field(min_length=32, max_length=4096)
+    code: str = Field(min_length=6, max_length=64)
