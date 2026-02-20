@@ -1,4 +1,4 @@
----
+ï»¿---
 [INFRA-001]  Initialize monorepo with Turborepo
 Date: 2026-02-20
 What was done:
@@ -54,7 +54,7 @@ Key decisions / gotchas:
 Files created/modified: packages/web/package.json, packages/web/index.html, packages/web/tsconfig.json, packages/web/vite.config.ts, packages/web/src/main.tsx, packages/web/src/App.tsx, packages/web/src/styles.css, package-lock.json, prd.json, progress.txt
 ---
 ---
-[INFRA-005] — Browser extension skeleton (Manifest V3)
+[INFRA-005] Browser extension skeleton (Manifest V3)
 Date: 2026-02-20
 What was done:
 - Replaced the extension stub workspace with a Vite + React + TypeScript setup using CRXJS.
@@ -66,3 +66,18 @@ Key decisions / gotchas:
 - Pinned `@crxjs/vite-plugin` to stable `2.0.0` to avoid beta deprecation and keep the toolchain aligned.
 Files created/modified: packages/extension/package.json, packages/extension/manifest.json, packages/extension/manifest.config.ts, packages/extension/tsconfig.json, packages/extension/vite.config.ts, packages/extension/src/popup/index.html, packages/extension/src/popup/main.tsx, packages/extension/src/popup/App.tsx, packages/extension/src/popup/styles.css, packages/extension/src/background.ts, packages/extension/src/content.ts, package-lock.json, prd.json, progress.txt
 ---
+---
+[INFRA-006] - GitHub Actions CI pipeline
+Date: 2026-02-20
+What was done:
+- Added `.github/workflows/ci.yml` to run on every pull request.
+- Implemented four CI jobs: `backend-test`, `frontend-check`, `dependency-scan`, and `sast`.
+- Wired `dependency-scan` to OWASP Dependency-Check against npm and Python manifests with `--failOnCVSS 7` so HIGH/CRITICAL CVEs fail the build.
+- Added a backend pytest for `/health` to ensure the backend test job has an executable test on stub PRs.
+- Marked `INFRA-006` as passed in `prd.json`.
+Key decisions / gotchas:
+- Used `--failOnCVSS 7` to enforce failure for HIGH (7.0+) and CRITICAL vulnerabilities.
+- Used Semgrep's OWASP Top 10 policy (`p/owasp-top-ten`) to satisfy the OWASP ruleset SAST requirement without needing paid Semgrep App integration.
+Files created/modified: .github/workflows/ci.yml, packages/backend/tests/test_health.py, prd.json, progress.txt
+---
+

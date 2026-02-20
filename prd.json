@@ -1,5 +1,5 @@
-{
-    "project":  "VaultGuard — Enterprise Password Manager",
+﻿{
+    "project":  "VaultGuard â€” Enterprise Password Manager",
     "version":  "1.0.0",
     "stories":  [
                     {
@@ -80,7 +80,7 @@
                                                    "Pipeline runs successfully on a stub PR",
                                                    "dependency-scan fails the build on HIGH/CRITICAL CVEs"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "DB-001",
@@ -116,7 +116,7 @@
                         "description":  "Write an Alembic migration for folders, collections, and collection_members tables.",
                         "acceptanceCriteria":  [
                                                    "folders: id, org_id(FK), owner_id(FK), parent_folder_id(nullable self-ref FK), name, created_at",
-                                                   "collections: id, org_id(FK), name, created_by(FK→users), created_at",
+                                                   "collections: id, org_id(FK), name, created_by(FKâ†’users), created_at",
                                                    "collection_members: collection_id(FK), user_or_group_id(UUID), permission(enum: view/edit/share/manage), PRIMARY KEY(collection_id, user_or_group_id)",
                                                    "alembic upgrade head completes without error"
                                                ],
@@ -128,7 +128,7 @@
                         "title":  "Create AuditLog and Session tables migration",
                         "description":  "Write Alembic migrations for audit_logs and sessions. AuditLog must be append-only (no UPDATE). Sessions track JWT refresh tokens.",
                         "acceptanceCriteria":  [
-                                                   "audit_logs: id, org_id(FK), actor_id(FK→users), action(enum), target_id(nullable), ip_address, user_agent, geo_location, timestamp(NOT NULL, immutable)",
+                                                   "audit_logs: id, org_id(FK), actor_id(FKâ†’users), action(enum), target_id(nullable), ip_address, user_agent, geo_location, timestamp(NOT NULL, immutable)",
                                                    "sessions: id(UUID), user_id(FK), refresh_token_hash, device_info(JSON), ip_address, created_at, expires_at, revoked_at(nullable)",
                                                    "alembic upgrade head completes without error",
                                                    "Indexes on org_id+timestamp in audit_logs for fast range queries"
@@ -170,7 +170,7 @@
                         "id":  "AUTH-003",
                         "phase":  2,
                         "title":  "Token refresh and logout endpoints",
-                        "description":  "Implement POST /api/v1/auth/refresh (rotate refresh token — old one invalidated), POST /api/v1/auth/logout (revoke current session), and DELETE /api/v1/auth/sessions/{id} (revoke specific session).",
+                        "description":  "Implement POST /api/v1/auth/refresh (rotate refresh token â€” old one invalidated), POST /api/v1/auth/logout (revoke current session), and DELETE /api/v1/auth/sessions/{id} (revoke specific session).",
                         "acceptanceCriteria":  [
                                                    "POST /api/v1/auth/refresh with valid refresh token returns new {access_token, refresh_token}",
                                                    "Old refresh token is invalidated after rotation (replay returns 401)",
@@ -300,7 +300,7 @@
                         "id":  "ORG-002",
                         "phase":  4,
                         "title":  "User invitation and onboarding flow",
-                        "description":  "Implement POST /api/v1/org/users/invite (send invitation email with a signed magic link token). The invited user clicks the link, completes registration. User status transitions: invited → active.",
+                        "description":  "Implement POST /api/v1/org/users/invite (send invitation email with a signed magic link token). The invited user clicks the link, completes registration. User status transitions: invited â†’ active.",
                         "acceptanceCriteria":  [
                                                    "POST /api/v1/org/users/invite accepts {email, role} and creates a user row with status=invited",
                                                    "Invitation token is a signed JWT (1-week expiry) stored as token_hash",
@@ -417,7 +417,7 @@
                         "id":  "FE-003",
                         "phase":  6,
                         "title":  "Vault dashboard layout (3-panel)",
-                        "description":  "Build the main vault dashboard at /vault. 3-panel layout: left sidebar (folder/collection tree), center item list, right item detail panel. Responsive — sidebar collapses on mobile.",
+                        "description":  "Build the main vault dashboard at /vault. 3-panel layout: left sidebar (folder/collection tree), center item list, right item detail panel. Responsive â€” sidebar collapses on mobile.",
                         "acceptanceCriteria":  [
                                                    "3-panel layout renders at 1440px; sidebar collapses at \u003c768px",
                                                    "Sidebar shows folder tree fetched from GET /api/v1/vault/folders",
@@ -433,7 +433,7 @@
                         "id":  "FE-004",
                         "phase":  6,
                         "title":  "Vault item detail view with masked fields",
-                        "description":  "The right panel shows vault item details. Sensitive fields show •••••••• by default. Reveal on click. Copy-to-clipboard button auto-clears clipboard after 30 seconds.",
+                        "description":  "The right panel shows vault item details. Sensitive fields show â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢ by default. Reveal on click. Copy-to-clipboard button auto-clears clipboard after 30 seconds.",
                         "acceptanceCriteria":  [
                                                    "Password fields rendered as masked by default",
                                                    "Click to reveal toggles visibility; eye icon reflects state",
@@ -493,7 +493,7 @@
                     {
                         "id":  "FE-008",
                         "phase":  6,
-                        "title":  "Admin panel — User management UI",
+                        "title":  "Admin panel â€” User management UI",
                         "description":  "Build the /admin/users page. Display a table of all org users. Actions: Invite User (modal), Change Role (inline dropdown), Offboard (confirmation dialog).",
                         "acceptanceCriteria":  [
                                                    "Table renders all users fetched from GET /api/v1/org/users",
@@ -508,7 +508,7 @@
                     {
                         "id":  "EXT-001",
                         "phase":  7,
-                        "title":  "Extension popup — login and vault search",
+                        "title":  "Extension popup â€” login and vault search",
                         "description":  "Build the 320x480px extension popup. Unauthenticated: shows login form. Authenticated: shows search box + list of matching credentials for current tab URL. Credentials loaded from background service worker cache.",
                         "acceptanceCriteria":  [
                                                    "Popup renders login form if no valid access token in chrome.storage.local",
@@ -523,7 +523,7 @@
                     {
                         "id":  "EXT-002",
                         "phase":  7,
-                        "title":  "Background service worker — vault sync and cache",
+                        "title":  "Background service worker â€” vault sync and cache",
                         "description":  "Implement the MV3 background service worker. On install/wakeup, fetch vault from API and cache in chrome.storage.local. Refresh every 5 minutes (using chrome.alarms). Decrypt items on demand using session key held in memory.",
                         "acceptanceCriteria":  [
                                                    "background.js uses chrome.alarms to schedule sync every 5 minutes",
@@ -537,7 +537,7 @@
                     {
                         "id":  "EXT-003",
                         "phase":  7,
-                        "title":  "Content script — auto-detect and auto-fill login forms",
+                        "title":  "Content script â€” auto-detect and auto-fill login forms",
                         "description":  "Implement the content script that detects login forms, shows an inline VaultGuard icon in password fields, and fills credentials on user request. Phishing protection: warn if current URL does not match the saved URI.",
                         "acceptanceCriteria":  [
                                                    "Content script detects \u003cinput type=password\u003e and injects VaultGuard icon",
@@ -569,7 +569,7 @@
                         "title":  "Password security dashboard (weak, reused, breached)",
                         "description":  "Build GET /api/v1/security/report (backend aggregate) and /security (frontend page). Report includes: breached count, weak count (entropy below threshold), reused count. Weakness/reuse detection is client-side.",
                         "acceptanceCriteria":  [
-                                                   "Backend endpoint returns stats from stored metadata — never decrypts vault data",
+                                                   "Backend endpoint returns stats from stored metadata â€” never decrypts vault data",
                                                    "Weakness and reuse detection performed client-side after vault sync",
                                                    "Frontend /security page shows: overall score, 3 stat cards, item list grouped by issue",
                                                    "Clicking an item navigates to its detail in the vault",
@@ -669,4 +669,3 @@
                     }
                 ]
 }
-
