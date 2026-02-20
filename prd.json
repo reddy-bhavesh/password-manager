@@ -41,7 +41,7 @@
                                                    "alembic upgrade head runs without error against the dev MySQL instance",
                                                    "pyproject.toml lists all dependencies with pinned versions"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "INFRA-004",

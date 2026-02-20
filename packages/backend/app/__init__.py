@@ -1,0 +1,2 @@
+"""VaultGuard backend application package."""
+

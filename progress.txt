@@ -24,3 +24,17 @@ Key decisions / gotchas:
 - Pinned MinIO image to a dated release tag for deterministic local environments.
 Files created/modified: docker-compose.dev.yml, .env.example, prd.json, progress.txt
 ---
+---
+[INFRA-003] — FastAPI backend skeleton with SQLAlchemy async + Alembic
+Date: 2026-02-20
+What was done:
+- Added a Python backend project scaffold in `packages/backend` with pinned dependencies in `pyproject.toml`.
+- Implemented `packages/backend/app/main.py` with FastAPI app bootstrap and a `GET /health` endpoint returning `{"status":"ok"}`.
+- Added environment-driven settings via `pydantic-settings` and async SQLAlchemy engine/session wiring.
+- Configured Alembic for async migrations (`alembic.ini`, async `alembic/env.py`) and added a baseline revision file.
+- Marked `INFRA-003` as passed in `prd.json`.
+Key decisions / gotchas:
+- Kept the first Alembic revision as a no-op baseline so `alembic upgrade head` can initialize cleanly before schema stories (`DB-*`) introduce tables.
+- Read MySQL connection values from environment to align with the existing Docker dev stack variables from `.env.example`.
+Files created/modified: packages/backend/pyproject.toml, packages/backend/app/__init__.py, packages/backend/app/main.py, packages/backend/app/core/__init__.py, packages/backend/app/core/settings.py, packages/backend/app/db/__init__.py, packages/backend/app/db/base.py, packages/backend/app/db/session.py, packages/backend/alembic.ini, packages/backend/alembic/env.py, packages/backend/alembic/script.py.mako, packages/backend/alembic/versions/0001_backend_skeleton.py, prd.json, progress.txt
+---
