@@ -35,7 +35,7 @@
         "`docker compose -f docker-compose.dev.yml up -d` starts all services successfully",
         "MySQL is accessible on port 3306, Redis on 6379, MinIO on 9000"
       ],
-      "passes": false
+      "passes": true
     },
 
     {

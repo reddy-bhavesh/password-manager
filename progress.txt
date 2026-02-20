@@ -31,3 +31,29 @@ Files created/modified:
 - packages/crypto/package.json
 - packages/shared-types/package.json
 ---
+
+---
+INFRA-002 — Docker Compose dev environment
+Date: 2026-02-20
+What was done:
+- Created docker-compose.dev.yml with four services: MySQL 8.0, Redis 7 (alpine), MinIO (latest), Meilisearch v1.6
+- Each service has a healthcheck with interval/timeout/retries/start_period configured
+- MySQL configured with utf8mb4, 200 max connections, 256MB InnoDB buffer pool, native auth plugin
+- Redis configured with password auth, 128MB max memory, LRU eviction, AOF persistence
+- MinIO configured with API port 9000 and console port 9001
+- Meilisearch configured with master key auth and analytics disabled
+- All services use named volumes for data persistence
+- All services connected via a shared bridge network (vaultguard-net)
+- Created .env.example documenting all required env vars: MySQL, Redis, MinIO, Meilisearch, JWT, service ports, KDF params, CORS, logging
+- All ports configurable via env vars with sensible defaults
+Key decisions / gotchas:
+- Used env var defaults in docker-compose (${VAR:-default}) so the stack can start without a .env file for quick onboarding
+- Redis uses alpine image for smaller footprint
+- Meilisearch pinned to v1.6 for stability (not :latest)
+- MinIO healthcheck uses `mc ready local` (official recommended check)
+- .env already in .gitignore from INFRA-001; .env.example is safe to commit
+- Docker runtime verification not possible on current machine (no Docker installed) — file syntax validated manually
+Files created/modified:
+- docker-compose.dev.yml (created)
+- .env.example (created)
+---
