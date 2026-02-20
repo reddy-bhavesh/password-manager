@@ -81,3 +81,18 @@ Key decisions / gotchas:
 Files created/modified: .github/workflows/ci.yml, packages/backend/tests/test_health.py, prd.json, progress.txt
 ---
 
+---
+[DB-001] - Create Organization and User tables migration
+Date: 2026-02-20
+What was done:
+- Added Alembic revision `0002_create_organizations_and_users` creating `organizations` and `users` with UUID primary keys.
+- Implemented required columns, foreign key (`users.org_id -> organizations.id`), unique email constraint, role/status enums, and explicit indexes.
+- Added typed SQLAlchemy models for `Organization` and `User` with enum-backed `UserRole` and `UserStatus`.
+- Wired model imports into `app/db/base.py` so metadata registration is consistent for migrations/autogeneration.
+- Fixed backend packaging discovery in `pyproject.toml` so editable installs and validation tooling work reliably.
+- Validated backend with `python -m pytest -q`, `python -m compileall app`, and `python -m alembic upgrade head --sql`.
+Key decisions / gotchas:
+- Docker is unavailable on this machine, so live MySQL execution of `alembic upgrade head` could not be run in this session.
+- Used Alembic SQL generation against the MySQL dialect (`--sql`) to verify DDL output and migration chain correctness without a running containerized MySQL instance.
+Files created/modified: packages/backend/alembic/versions/0002_create_organizations_and_users.py, packages/backend/app/models/__init__.py, packages/backend/app/models/organization.py, packages/backend/app/models/user.py, packages/backend/app/db/base.py, packages/backend/pyproject.toml, prd.json, progress.txt
+---

@@ -94,7 +94,7 @@
                                                    "users: id(UUID PK), org_id(FK), email(unique), name, role(enum), status(enum), public_key, encrypted_private_key, master_password_hint, mfa_enabled, created_at",
                                                    "TypeCheck passes (no SQLAlchemy model type errors)"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "DB-002",
