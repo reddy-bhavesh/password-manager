@@ -247,18 +247,19 @@ async def login_user(
 async def enroll_totp_mfa(
     db: AsyncSession,
     *,
-    access_token: str,
+    current_user: User | None = None,
+    access_token: str | None = None,
 ) -> MfaEnrollResult:
-    current_user = await get_user_from_access_token(db, access_token)
+    resolved_user = await _resolve_current_user(db, current_user=current_user, access_token=access_token)
     secret = pyotp.random_base32()
     backup_codes = [_generate_backup_code() for _ in range(BACKUP_CODE_COUNT)]
     backup_hashes = [_hash_backup_code(code) for code in backup_codes]
 
-    credential = await db.get(MfaTotpCredential, current_user.id)
+    credential = await db.get(MfaTotpCredential, resolved_user.id)
     if credential is None:
         credential = MfaTotpCredential(
-            user_id=current_user.id,
-            org_id=current_user.org_id,
+            user_id=resolved_user.id,
+            org_id=resolved_user.org_id,
             totp_secret=secret,
             backup_code_hashes=backup_hashes,
             confirmed_at=None,
@@ -268,38 +269,39 @@ async def enroll_totp_mfa(
         credential.totp_secret = secret
         credential.backup_code_hashes = backup_hashes
         credential.confirmed_at = None
-    current_user.mfa_enabled = False
+    resolved_user.mfa_enabled = False
     await db.commit()
 
-    uri = pyotp.TOTP(secret).provisioning_uri(name=current_user.email, issuer_name="VaultGuard")
+    uri = pyotp.TOTP(secret).provisioning_uri(name=resolved_user.email, issuer_name="VaultGuard")
     return MfaEnrollResult(otpauth_uri=uri, backup_codes=backup_codes)
 
 
 async def confirm_totp_mfa(
     db: AsyncSession,
     *,
-    access_token: str,
+    current_user: User | None = None,
+    access_token: str | None = None,
     code: str,
     client_ip: str,
     user_agent: str,
     now: datetime.datetime | None = None,
 ) -> None:
     current_time = now or datetime.datetime.now(datetime.UTC)
-    current_user = await get_user_from_access_token(db, access_token)
-    credential = await db.get(MfaTotpCredential, current_user.id)
+    resolved_user = await _resolve_current_user(db, current_user=current_user, access_token=access_token)
+    credential = await db.get(MfaTotpCredential, resolved_user.id)
     if credential is None:
         raise MfaNotEnrolledError("mfa is not enrolled")
     if not _verify_totp_code(credential.totp_secret, code):
         raise InvalidMfaCodeError("invalid mfa code")
 
     credential.confirmed_at = current_time
-    current_user.mfa_enabled = True
+    resolved_user.mfa_enabled = True
     await _append_audit_log(
         db,
-        org_id=current_user.org_id,
-        actor_id=current_user.id,
+        org_id=resolved_user.org_id,
+        actor_id=resolved_user.id,
         action=AuditLogAction.MFA_ENABLE,
-        target_id=current_user.id,
+        target_id=resolved_user.id,
         ip_address=client_ip,
         user_agent=user_agent,
     )
@@ -462,14 +464,15 @@ async def refresh_tokens(
 async def revoke_session_by_refresh_token(
     db: AsyncSession,
     *,
-    access_token: str,
+    current_user: User | None = None,
+    access_token: str | None = None,
     refresh_token: str,
     client_ip: str,
     user_agent: str,
     now: datetime.datetime | None = None,
 ) -> None:
     current_time = now or datetime.datetime.now(datetime.UTC)
-    current_user = await get_user_from_access_token(db, access_token)
+    resolved_user = await _resolve_current_user(db, current_user=current_user, access_token=access_token)
     refresh_token_hash = hashlib.sha256(refresh_token.encode("utf-8")).hexdigest()
 
     session_query = select(Session).where(
@@ -477,14 +480,14 @@ async def revoke_session_by_refresh_token(
         Session.revoked_at.is_(None),
     )
     auth_session = (await db.execute(session_query)).scalar_one_or_none()
-    if auth_session is None or not _uuids_equal(auth_session.user_id, current_user.id):
+    if auth_session is None or not _uuids_equal(auth_session.user_id, resolved_user.id):
         raise SessionNotFoundError("session not found")
 
     auth_session.revoked_at = current_time
     await _append_audit_log(
         db,
-        org_id=current_user.org_id,
-        actor_id=current_user.id,
+        org_id=resolved_user.org_id,
+        actor_id=resolved_user.id,
         action=AuditLogAction.LOGOUT,
         target_id=auth_session.id,
         ip_address=client_ip,
@@ -496,24 +499,25 @@ async def revoke_session_by_refresh_token(
 async def revoke_session_by_id(
     db: AsyncSession,
     *,
-    access_token: str,
+    current_user: User | None = None,
+    access_token: str | None = None,
     session_id: uuid.UUID,
     client_ip: str,
     user_agent: str,
     now: datetime.datetime | None = None,
 ) -> None:
     current_time = now or datetime.datetime.now(datetime.UTC)
-    current_user = await get_user_from_access_token(db, access_token)
+    resolved_user = await _resolve_current_user(db, current_user=current_user, access_token=access_token)
     target_session = await db.get(Session, session_id)
-    if target_session is None or target_session.user_id != current_user.id:
+    if target_session is None or target_session.user_id != resolved_user.id:
         raise SessionNotFoundError("session not found")
 
     if target_session.revoked_at is None:
         target_session.revoked_at = current_time
     await _append_audit_log(
         db,
-        org_id=current_user.org_id,
-        actor_id=current_user.id,
+        org_id=resolved_user.org_id,
+        actor_id=resolved_user.id,
         action=AuditLogAction.SESSION_REVOKE,
         target_id=target_session.id,
         ip_address=client_ip,
@@ -537,6 +541,19 @@ async def get_user_from_access_token(db: AsyncSession, access_token: str) -> Use
     ):
         raise InvalidAccessTokenError("invalid access token")
     return user
+
+
+async def _resolve_current_user(
+    db: AsyncSession,
+    *,
+    current_user: User | None,
+    access_token: str | None,
+) -> User:
+    if current_user is not None:
+        return current_user
+    if access_token is None:
+        raise InvalidAccessTokenError("invalid access token")
+    return await get_user_from_access_token(db, access_token)
 
 
 async def _append_audit_log(

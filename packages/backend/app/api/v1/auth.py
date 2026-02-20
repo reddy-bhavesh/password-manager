@@ -1,10 +1,12 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Header, Request
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.dependencies.auth import get_current_user
 from app.core.problems import problem_response
 from app.db.session import get_db_session
+from app.models.user import User
 from app.schemas.auth import (
     Argon2Params,
     AuthenticatedUserResponse,
@@ -26,7 +28,6 @@ from app.services.auth import (
     DuplicateEmailError,
     InvalidMfaCodeError,
     InvalidMfaTokenError,
-    InvalidAccessTokenError,
     InvalidCredentialsError,
     InvalidRefreshTokenError,
     MfaNotEnrolledError,
@@ -44,16 +45,6 @@ from app.services.auth import (
 
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
-
-
-def _extract_bearer_token(authorization: str | None) -> str:
-    if authorization is None:
-        raise InvalidAccessTokenError("missing authorization header")
-
-    scheme, _, token = authorization.partition(" ")
-    if scheme.lower() != "bearer" or not token:
-        raise InvalidAccessTokenError("invalid authorization header")
-    return token
 
 
 @router.post("/register", response_model=RegisterUserResponse, status_code=201)
@@ -156,26 +147,18 @@ async def refresh(
 async def logout(
     payload: LogoutRequest,
     request: Request,
-    authorization: str | None = Header(default=None),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> None:
     client_ip = request.client.host if request.client and request.client.host else "0.0.0.0"
     user_agent = request.headers.get("user-agent", "")
     try:
-        access_token = _extract_bearer_token(authorization)
         await revoke_session_by_refresh_token(
             db,
-            access_token=access_token,
+            current_user=current_user,
             refresh_token=payload.refresh_token,
             client_ip=client_ip,
             user_agent=user_agent,
-        )
-    except InvalidAccessTokenError:
-        return problem_response(
-            status=401,
-            title="Unauthorized",
-            detail="Invalid access token.",
-            type_="https://vaultguard.dev/errors/invalid-access-token",
         )
     except SessionNotFoundError:
         return problem_response(
@@ -191,26 +174,18 @@ async def logout(
 async def revoke_session(
     session_id: uuid.UUID,
     request: Request,
-    authorization: str | None = Header(default=None),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> None:
     client_ip = request.client.host if request.client and request.client.host else "0.0.0.0"
     user_agent = request.headers.get("user-agent", "")
     try:
-        access_token = _extract_bearer_token(authorization)
         await revoke_session_by_id(
             db,
-            access_token=access_token,
+            current_user=current_user,
             session_id=session_id,
             client_ip=client_ip,
             user_agent=user_agent,
-        )
-    except InvalidAccessTokenError:
-        return problem_response(
-            status=401,
-            title="Unauthorized",
-            detail="Invalid access token.",
-            type_="https://vaultguard.dev/errors/invalid-access-token",
         )
     except SessionNotFoundError:
         return problem_response(
@@ -224,19 +199,10 @@ async def revoke_session(
 
 @router.post("/mfa/totp/enroll", response_model=MfaTotpEnrollResponse)
 async def enroll_mfa_totp(
-    authorization: str | None = Header(default=None),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> MfaTotpEnrollResponse:
-    try:
-        access_token = _extract_bearer_token(authorization)
-        result = await enroll_totp_mfa(db, access_token=access_token)
-    except InvalidAccessTokenError:
-        return problem_response(
-            status=401,
-            title="Unauthorized",
-            detail="Invalid access token.",
-            type_="https://vaultguard.dev/errors/invalid-access-token",
-        )
+    result = await enroll_totp_mfa(db, current_user=current_user)
 
     return MfaTotpEnrollResponse(otpauth_uri=result.otpauth_uri, backup_codes=result.backup_codes)
 
@@ -245,26 +211,18 @@ async def enroll_mfa_totp(
 async def confirm_mfa_totp(
     payload: MfaTotpConfirmRequest,
     request: Request,
-    authorization: str | None = Header(default=None),
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
 ) -> MfaTotpConfirmResponse:
     client_ip = request.client.host if request.client and request.client.host else "0.0.0.0"
     user_agent = request.headers.get("user-agent", "")
     try:
-        access_token = _extract_bearer_token(authorization)
         await confirm_totp_mfa(
             db,
-            access_token=access_token,
+            current_user=current_user,
             code=payload.code,
             client_ip=client_ip,
             user_agent=user_agent,
-        )
-    except InvalidAccessTokenError:
-        return problem_response(
-            status=401,
-            title="Unauthorized",
-            detail="Invalid access token.",
-            type_="https://vaultguard.dev/errors/invalid-access-token",
         )
     except MfaNotEnrolledError:
         return problem_response(

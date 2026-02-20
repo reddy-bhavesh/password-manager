@@ -204,3 +204,16 @@ Key decisions / gotchas:
 - Kept existing AUTH-002 behavior unchanged for non-MFA users by making login response token fields nullable only when MFA is required.
 Files created/modified: packages/backend/app/models/mfa_totp_credential.py, packages/backend/alembic/versions/0007_create_mfa_totp_credentials.py, packages/backend/app/db/model_registry.py, packages/backend/app/core/settings.py, packages/backend/app/security/tokens.py, packages/backend/app/services/auth.py, packages/backend/app/schemas/auth.py, packages/backend/app/api/v1/auth.py, packages/backend/tests/test_auth_mfa_integration.py, packages/backend/tests/test_auth_tokens_unit.py, packages/backend/pyproject.toml, prd.json, progress.txt
 ---
+---
+[AUTH-005] — JWT auth middleware / FastAPI dependency
+Date: 2026-02-20
+What was done:
+- Added shared auth dependencies: `get_access_token`, `get_current_user`, `require_role`, and `require_admin`.
+- Updated protected auth endpoints to use dependency injection for bearer JWT validation instead of manual header parsing.
+- Added unit tests covering valid token access, expired-token 401 with `WWW-Authenticate: Bearer`, and role-based 403 denial for admin-only route.
+- Kept session/MFA service methods backward-compatible by supporting either dependency-provided `current_user` or access-token lookup.
+Key decisions / gotchas:
+- Implemented role guard as hierarchical (`viewer < member < manager < admin < owner`) so higher-privileged roles satisfy lower-role requirements.
+- Continued using centralized token validation (`validate_access_token`) to enforce RS256 signature, issuer, and expiry checks in one place.
+Files created/modified: packages/backend/app/api/dependencies/__init__.py, packages/backend/app/api/dependencies/auth.py, packages/backend/app/api/v1/auth.py, packages/backend/app/services/auth.py, packages/backend/tests/test_auth_dependencies_unit.py, prd.json, progress.txt
+---

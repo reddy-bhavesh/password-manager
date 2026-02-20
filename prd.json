@@ -208,7 +208,7 @@
                                                    "Dependency applied to all protected routes in AUTH, VAULT, ORG modules",
                                                    "Unit tests cover valid token, expired token, wrong role scenarios"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "VAULT-001",
