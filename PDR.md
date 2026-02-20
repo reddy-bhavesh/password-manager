@@ -31,8 +31,7 @@
 16. [Testing Strategy](#16-testing-strategy)
 17. [Deployment Strategy](#17-deployment-strategy)
 18. [Disaster Recovery & Business Continuity](#18-disaster-recovery--business-continuity)
-19. [Pricing & Licensing Model](#19-pricing--licensing-model)
-20. [Glossary](#20-glossary)
+19. [Glossary](#19-glossary)
 
 ---
 
@@ -354,10 +353,9 @@ Organizations of all sizes face an escalating credential security crisis:
 │  └──────────────┘  └──────────────┘  └────────────┘  │
 └─────────────────────────────────────────────────────┘
            │                    │                │
-┌──────────▼──────┐  ┌──────────▼──────┐  ┌─────▼──────────────┐
-│   MySQL DB      │  │  Redis Cache    │  │  Object Storage    │
-│  (Encrypted)    │  │  (Sessions)     │  │  (Attachments)     │
-└─────────────────┘  └─────────────────┘  └────────────────────┘
+┌──────────▼──────────────────────────────────▼──────────────┐
+│   MySQL DB (Encrypted)    │    Object Storage (Attachments) │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ### 8.2 Zero-Knowledge Encryption Flow
@@ -684,17 +682,14 @@ VaultGuard's interface follows the principle of **"Security through Simplicity"*
 
 ### 14.1 Backend
 
-| Layer          | Technology                | Rationale                                           |
-| -------------- | ------------------------- | --------------------------------------------------- |
-| Language       | **Go 1.22+**              | Memory safety, performance, concurrency             |
-| Web Framework  | **Gin**                   | Fast HTTP, minimal overhead                         |
-| Database       | **MySQL 8.0**             | ACID compliance, JSON column support, wide adoption |
-| Cache          | **Redis 7**               | Session storage, rate limiting                      |
-| Message Queue  | **NATS JetStream**        | Lightweight, fast pub/sub for sync events           |
-| Object Storage | **MinIO** (S3-compatible) | Self-hosted file attachments                        |
-| Search         | **Meilisearch**           | Typo-tolerant item search                           |
-| Migrations     | **golang-migrate**        | Version-controlled schema migrations                |
-| ORM            | **sqlc**                  | Type-safe SQL, no magic                             |
+| Layer          | Technology                      | Rationale                                           |
+| -------------- | ------------------------------- | --------------------------------------------------- |
+| Language       | **Python 3.12+**                | Rich ecosystem, rapid development, wide adoption    |
+| Web Framework  | **FastAPI**                     | High performance async, automatic OpenAPI docs      |
+| Database       | **MySQL 8.0**                   | ACID compliance, JSON column support, wide adoption |
+| Object Storage | **Azure Blob Storage**          | Managed file attachments and backups on Azure       |
+| Migrations     | **Alembic**                     | Version-controlled schema migrations                |
+| ORM            | **SQLAlchemy (Core + asyncpg)** | Type-safe SQL, async support                        |
 
 ### 14.2 Frontend
 
@@ -724,14 +719,14 @@ VaultGuard's interface follows the principle of **"Security through Simplicity"*
 | Component                | Technology                                                     |
 | ------------------------ | -------------------------------------------------------------- |
 | Containerization         | Docker + Docker Compose (dev)                                  |
-| Orchestration            | Kubernetes + Helm charts                                       |
+| Orchestration            | Azure Kubernetes Service (AKS) + Helm charts                   |
 | Service Mesh             | Istio (mTLS between microservices)                             |
 | Ingress                  | NGINX Ingress Controller                                       |
 | Cert Management          | cert-manager (Let's Encrypt / internal CA)                     |
-| Observability            | Prometheus + Grafana + Loki                                    |
-| Tracing                  | OpenTelemetry + Jaeger                                         |
-| CI/CD                    | GitHub Actions / Azure DevOps Pipelines                        |
-| Secrets (Infrastructure) | HashiCorp Vault (for infrastructure secrets, not user secrets) |
+| Observability            | Azure Monitor + Prometheus + Grafana                           |
+| Tracing                  | OpenTelemetry + Azure Application Insights                     |
+| CI/CD                    | GitHub Actions                                                 |
+| Secrets (Infrastructure) | Azure Key Vault (for infrastructure secrets, not user secrets) |
 
 ---
 
@@ -791,7 +786,7 @@ Every feature PR **must** include confirmation that:
 - [ ] Any cryptographic code reviewed against NIST SP 800-57
 - [ ] Error messages do not leak internal state (OWASP Error Handling)
 - [ ] New dependencies scanned and approved (OWASP Dependency-Check)
-- [ ] SQL/NoSQL queries are parameterized (OWASP SQL Injection prevention)
+- [ ] SQL queries use parameterized statements / ORM-safe bindings (OWASP SQL Injection prevention)
 - [ ] Authorization checks applied at both API gateway and service layer
 
 ---
@@ -868,21 +863,21 @@ Every feature PR **must** include confirmation that:
 
 ### 16.2 Test Requirements
 
-| Type                | Target Coverage           | Tooling                                 |
-| ------------------- | ------------------------- | --------------------------------------- |
-| Unit Tests          | > 80% line coverage       | Go: `testing` + `testify`; TS: `Vitest` |
-| Integration Tests   | All API endpoints         | `httptest` (Go), `supertest` (Node)     |
-| E2E Tests           | 20 critical user journeys | Playwright                              |
-| Security Tests      | DAST on every release     | OWASP ZAP automated scan                |
-| Cryptography Tests  | 100% of crypto functions  | Known-answer tests (KATs)               |
-| Performance Tests   | P95 < SLA thresholds      | k6 load testing                         |
-| Accessibility Tests | WCAG 2.1 AA               | axe-core + manual screen reader         |
+| Type                | Target Coverage           | Tooling                                     |
+| ------------------- | ------------------------- | ------------------------------------------- |
+| Unit Tests          | > 80% line coverage       | Python: `pytest` + `coverage`; TS: `Vitest` |
+| Integration Tests   | All API endpoints         | `pytest` + `httpx` (async), `supertest`     |
+| E2E Tests           | 20 critical user journeys | Playwright                                  |
+| Security Tests      | DAST on every release     | OWASP ZAP automated scan                    |
+| Cryptography Tests  | 100% of crypto functions  | Known-answer tests (KATs)                   |
+| Performance Tests   | P95 < SLA thresholds      | k6 load testing                             |
+| Accessibility Tests | WCAG 2.1 AA               | axe-core + manual screen reader             |
 
 ### 16.3 Security Testing
 
 - **SAST**: Semgrep + CodeQL on every PR
 - **DAST**: OWASP ZAP on staging post-deploy
-- **Dependency Scanning**: Dependabot + `govulncheck` + `npm audit`
+- **Dependency Scanning**: Dependabot + `pip-audit` + `npm audit`
 - **Container Scanning**: Trivy on all Docker images
 - **Penetration Testing**: External firm every 6 months
 - **Bug Bounty Program**: Private program via HackerOne (Phase 3)
@@ -898,10 +893,10 @@ Every feature PR **must** include confirmation that:
 ```yaml
 # Quickstart: 5-minute setup
 docker compose -f vaultguard-compose.yml up -d
-# Includes: API server, Web app, MySQL, Redis, MinIO
+# Includes: API server, Web app, MySQL, Azure Blob Storage
 ```
 
-#### Option B: Kubernetes / Helm (Enterprise, 100+ users)
+#### Option B: Azure Kubernetes Service / Helm (Enterprise, 100+ users)
 
 ```bash
 helm repo add vaultguard https://charts.vaultguard.io
@@ -913,7 +908,7 @@ helm install vaultguard vaultguard/vaultguard \
 #### Option C: Managed by Organization's Platform Team
 
 - Custom IaC (Terraform / Pulumi modules provided)
-- Supports: AWS EKS, Azure AKS, GCP GKE, on-premises Kubernetes
+- Primary target: **Azure AKS**; also supports on-premises Kubernetes
 
 ### 17.2 Update Strategy
 
@@ -936,13 +931,13 @@ helm install vaultguard vaultguard/vaultguard \
 
 ### 18.1 Backup Strategy
 
-| Data Type                    | Frequency  | Retention          | Method                                  |
-| ---------------------------- | ---------- | ------------------ | --------------------------------------- |
-| MySQL (full backup)          | Daily      | 30 days            | `mysqldump` → S3/MinIO (encrypted)      |
-| MySQL (binary log streaming) | Continuous | 7 days             | MySQL binlog replication to hot-standby |
-| Object Storage (files)       | Nightly    | 90 days            | MinIO bucket replication                |
-| Audit Logs                   | Real-time  | 1 year (immutable) | Write-once S3 bucket                    |
-| Configuration                | On change  | 90 days            | Git-backed config repo                  |
+| Data Type                    | Frequency  | Retention          | Method                                       |
+| ---------------------------- | ---------- | ------------------ | -------------------------------------------- |
+| MySQL (full backup)          | Daily      | 30 days            | `mysqldump` → Azure Blob Storage (encrypted) |
+| MySQL (binary log streaming) | Continuous | 7 days             | MySQL binlog replication to hot-standby      |
+| Object Storage (files)       | Nightly    | 90 days            | Azure Blob Storage geo-redundant replication |
+| Audit Logs                   | Real-time  | 1 year (immutable) | Azure Blob Storage immutable (WORM) policy   |
+| Configuration                | On change  | 90 days            | Git-backed config repo (Azure Repos)         |
 
 ### 18.2 Recovery Procedures
 
@@ -961,29 +956,7 @@ helm install vaultguard vaultguard/vaultguard \
 
 ---
 
-## 19. Pricing & Licensing Model
-
-> _(For internal chargeback/cost-center model or future external commercialization)_
-
-### 19.1 Tier Structure
-
-| Tier           | Users     | Key Features                                               | Suggested Monthly Cost |
-| -------------- | --------- | ---------------------------------------------------------- | ---------------------- |
-| **Starter**    | Up to 10  | Core vault, basic MFA, browser extension                   | Free (self-hosted)     |
-| **Team**       | Up to 50  | + Shared collections, basic RBAC, audit log                | $4/user/month          |
-| **Business**   | Up to 500 | + SSO, SCIM, advanced RBAC, SIEM integration               | $8/user/month          |
-| **Enterprise** | Unlimited | + All features, SLA, dedicated support, compliance reports | Custom                 |
-
-### 19.2 Licensing
-
-- **Open Core Model**: Core vault engine open-source (MIT License) on GitHub
-- **Enterprise Features**: Proprietary add-ons distributed under commercial license
-- **Self-Hosted**: Perpetual license per deployment; annual maintenance fee
-- **Source Code Escrow**: Available for enterprise customers (business continuity protection)
-
----
-
-## 20. Glossary
+## 19. Glossary
 
 | Term               | Definition                                                                                |
 | ------------------ | ----------------------------------------------------------------------------------------- |
