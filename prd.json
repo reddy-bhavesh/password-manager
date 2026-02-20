@@ -67,7 +67,7 @@
                                                    "Popup renders a placeholder UI without console errors",
                                                    "TypeScript typecheck passes"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "INFRA-006",
@@ -669,3 +669,4 @@
                     }
                 ]
 }
+

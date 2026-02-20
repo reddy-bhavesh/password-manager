@@ -1,0 +1,53 @@
+:root {
+  color-scheme: light;
+  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  width: 320px;
+  min-height: 220px;
+  background: linear-gradient(155deg, #f8fafc, #e2e8f0);
+  color: #0f172a;
+}
+
+.popup-shell {
+  display: flex;
+  min-height: 220px;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #334155;
+}
+
+h1 {
+  margin: 2px 0 0;
+  font-size: 20px;
+}
+
+.body-copy {
+  margin: 0;
+  color: #334155;
+}
+
+.action-button {
+  margin-top: auto;
+  border: 0;
+  border-radius: 8px;
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 10px 12px;
+  font: inherit;
+  cursor: pointer;
+}

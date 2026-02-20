@@ -1,5 +1,5 @@
 ---
-[INFRA-001] — Initialize monorepo with Turborepo
+[INFRA-001]  Initialize monorepo with Turborepo
 Date: 2026-02-20
 What was done:
 - Created Turborepo monorepo scaffolding at the repository root.
@@ -12,7 +12,7 @@ Key decisions / gotchas:
 Files created/modified: package.json, turbo.json, .editorconfig, .gitignore, packages/backend/package.json, packages/web/package.json, packages/extension/package.json, prd.json, progress.txt
 ---
 ---
-[INFRA-002] — Docker Compose dev environment
+[INFRA-002]  Docker Compose dev environment
 Date: 2026-02-20
 What was done:
 - Added `docker-compose.dev.yml` with MySQL 8.0, MinIO, and Redis services for local development.
@@ -25,7 +25,7 @@ Key decisions / gotchas:
 Files created/modified: docker-compose.dev.yml, .env.example, prd.json, progress.txt
 ---
 ---
-[INFRA-003] — FastAPI backend skeleton with SQLAlchemy async + Alembic
+[INFRA-003]  FastAPI backend skeleton with SQLAlchemy async + Alembic
 Date: 2026-02-20
 What was done:
 - Added a Python backend project scaffold in `packages/backend` with pinned dependencies in `pyproject.toml`.
@@ -39,15 +39,30 @@ Key decisions / gotchas:
 Files created/modified: packages/backend/pyproject.toml, packages/backend/app/__init__.py, packages/backend/app/main.py, packages/backend/app/core/__init__.py, packages/backend/app/core/settings.py, packages/backend/app/db/__init__.py, packages/backend/app/db/base.py, packages/backend/app/db/session.py, packages/backend/alembic.ini, packages/backend/alembic/env.py, packages/backend/alembic/script.py.mako, packages/backend/alembic/versions/0001_backend_skeleton.py, prd.json, progress.txt
 ---
 ---
-[INFRA-004] — React + Vite frontend skeleton
+[INFRA-004]  React + Vite frontend skeleton
 Date: 2026-02-20
 What was done:
-- Replaced the `packages/web` stub with a React 19 + TypeScript app built on Vite 6.
+- Replaced the packages/web stub with a React 19 + TypeScript app built on Vite 6.
 - Added and pinned the required frontend stack libraries: Zustand, TanStack Query, TanStack Router, React Hook Form, Zod, Framer Motion, and Radix UI.
 - Implemented a stub home page that renders successfully and wires core libraries for baseline integration.
-- Verified `npm run build` creates `packages/web/dist`, `npx tsc --noEmit` passes, and the dev server starts and listens on the configured port.
+- Verified 
+pm run build creates packages/web/dist, 
+px tsc --noEmit passes, and the dev server starts and listens on the configured port.
 Key decisions / gotchas:
-- Kept `framer-motion` pinned in dependencies per story requirement but avoided runtime import in the stub page due a package resolver incompatibility with the selected toolchain.
+- Kept Framer-motion pinned in dependencies per story requirement but avoided runtime import in the stub page due a package resolver incompatibility with the selected toolchain.
 - Used a lightweight router/query bootstrapping pattern so future feature stories can extend routes and data fetching without refactoring the app entry.
 Files created/modified: packages/web/package.json, packages/web/index.html, packages/web/tsconfig.json, packages/web/vite.config.ts, packages/web/src/main.tsx, packages/web/src/App.tsx, packages/web/src/styles.css, package-lock.json, prd.json, progress.txt
+---
+---
+[INFRA-005] — Browser extension skeleton (Manifest V3)
+Date: 2026-02-20
+What was done:
+- Replaced the extension stub workspace with a Vite + React + TypeScript setup using CRXJS.
+- Added a valid Manifest V3 definition with popup, background service worker, and content script entries.
+- Implemented popup UI placeholder (`popup.html` + React app), background worker stub, and content script stub.
+- Verified `npm run build --workspace @vaultguard/extension` produces `packages/extension/dist` and `npm run typecheck --workspace @vaultguard/extension` passes.
+Key decisions / gotchas:
+- Kept both `manifest.json` (explicit MV3 artifact for acceptance) and `manifest.config.ts` (typed CRXJS source for Vite build integration).
+- Pinned `@crxjs/vite-plugin` to stable `2.0.0` to avoid beta deprecation and keep the toolchain aligned.
+Files created/modified: packages/extension/package.json, packages/extension/manifest.json, packages/extension/manifest.config.ts, packages/extension/tsconfig.json, packages/extension/vite.config.ts, packages/extension/src/popup/index.html, packages/extension/src/popup/main.tsx, packages/extension/src/popup/App.tsx, packages/extension/src/popup/styles.css, packages/extension/src/background.ts, packages/extension/src/content.ts, package-lock.json, prd.json, progress.txt
 ---

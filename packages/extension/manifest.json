@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "VaultGuard",
+  "description": "VaultGuard browser extension for secure credential workflows.",
+  "version": "1.0.0",
+  "action": {
+    "default_popup": "src/popup/index.html"
+  },
+  "background": {
+    "service_worker": "src/background.ts",
+    "type": "module"
+  },
+  "permissions": ["storage", "activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["http://*/*", "https://*/*"],
+      "js": ["src/content.ts"],
+      "run_at": "document_idle"
+    }
+  ]
+}
