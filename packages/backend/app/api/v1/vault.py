@@ -11,8 +11,12 @@ from app.core.problems import problem_response
 from app.db.session import get_db_session
 from app.models.user import User
 from app.schemas.vault import (
+    CreateFolderRequest,
     CreateVaultItemRequest,
+    FolderResponse,
+    FolderTreeNode,
     RestoreVaultItemRequest,
+    UpdateFolderRequest,
     UpdateVaultItemRequest,
     VaultItemCreatedResponse,
     VaultItemRevisionResponse,
@@ -20,17 +24,26 @@ from app.schemas.vault import (
     VaultItemResponse,
 )
 from app.services.vault import (
+    FolderForbiddenError,
+    FolderInvalidMoveError,
+    FolderNoFieldsToUpdateError,
+    FolderNotFoundError,
+    ParentFolderNotFoundError,
     VaultItemForbiddenError,
     VaultItemNotFoundError,
     VaultItemRevisionNotFoundError,
+    create_folder,
     create_vault_item,
+    delete_folder,
     get_vault_revision_counter,
     list_vault_item_history,
+    list_folders_tree,
     list_vault_items,
     list_vault_items_since,
     get_vault_item,
     restore_vault_item_revision,
     soft_delete_vault_item,
+    update_folder,
     update_vault_item,
 )
 
@@ -40,6 +53,124 @@ router = APIRouter(prefix="/api/v1/vault", tags=["vault"])
 
 def _set_revision_header(response: Response, *, revision_counter: int) -> None:
     response.headers["X-Vault-Revision"] = str(max(0, revision_counter))
+
+
+@router.post("/folders", response_model=FolderResponse, status_code=201)
+async def create_folder_endpoint(
+    payload: CreateFolderRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> FolderResponse:
+    try:
+        folder = await create_folder(
+            db,
+            current_user=current_user,
+            payload=payload,
+        )
+    except ParentFolderNotFoundError:
+        return problem_response(
+            status=404,
+            title="Not Found",
+            detail="Parent folder not found.",
+            type_="https://vaultguard.dev/errors/parent-folder-not-found",
+        )
+    except FolderForbiddenError:
+        return problem_response(
+            status=403,
+            title="Forbidden",
+            detail="You do not have access to the parent folder.",
+            type_="https://vaultguard.dev/errors/folder-forbidden",
+        )
+    return FolderResponse.from_folder(folder)
+
+
+@router.get("/folders", response_model=list[FolderTreeNode])
+async def get_folders_endpoint(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> list[FolderTreeNode]:
+    return await list_folders_tree(db, current_user=current_user)
+
+
+@router.patch("/folders/{folder_id}", response_model=FolderResponse)
+async def update_folder_endpoint(
+    folder_id: uuid.UUID,
+    payload: UpdateFolderRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> FolderResponse:
+    try:
+        folder = await update_folder(
+            db,
+            current_user=current_user,
+            folder_id=folder_id,
+            payload=payload,
+        )
+    except FolderNotFoundError:
+        return problem_response(
+            status=404,
+            title="Not Found",
+            detail="Folder not found.",
+            type_="https://vaultguard.dev/errors/folder-not-found",
+        )
+    except ParentFolderNotFoundError:
+        return problem_response(
+            status=404,
+            title="Not Found",
+            detail="Parent folder not found.",
+            type_="https://vaultguard.dev/errors/parent-folder-not-found",
+        )
+    except FolderForbiddenError:
+        return problem_response(
+            status=403,
+            title="Forbidden",
+            detail="You do not have access to this folder.",
+            type_="https://vaultguard.dev/errors/folder-forbidden",
+        )
+    except FolderInvalidMoveError:
+        return problem_response(
+            status=400,
+            title="Bad Request",
+            detail="Folder move is invalid.",
+            type_="https://vaultguard.dev/errors/folder-invalid-move",
+        )
+    except FolderNoFieldsToUpdateError:
+        return problem_response(
+            status=400,
+            title="Bad Request",
+            detail="At least one field must be provided for update.",
+            type_="https://vaultguard.dev/errors/folder-empty-update",
+        )
+    return FolderResponse.from_folder(folder)
+
+
+@router.delete("/folders/{folder_id}", status_code=204, response_class=Response)
+async def delete_folder_endpoint(
+    folder_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+) -> Response:
+    try:
+        await delete_folder(
+            db,
+            current_user=current_user,
+            folder_id=folder_id,
+        )
+    except FolderNotFoundError:
+        return problem_response(
+            status=404,
+            title="Not Found",
+            detail="Folder not found.",
+            type_="https://vaultguard.dev/errors/folder-not-found",
+        )
+    except FolderForbiddenError:
+        return problem_response(
+            status=403,
+            title="Forbidden",
+            detail="You do not have access to this folder.",
+            type_="https://vaultguard.dev/errors/folder-forbidden",
+        )
+    return Response(status_code=204)
 
 
 @router.post("/items", response_model=VaultItemCreatedResponse, status_code=201)

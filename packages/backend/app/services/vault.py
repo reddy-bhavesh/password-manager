@@ -3,13 +3,20 @@ from __future__ import annotations
 import datetime
 import uuid
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.audit_log import AuditLog, AuditLogAction
+from app.models.folder import Folder
 from app.models.user import User
 from app.models.vault_item import VaultItem, VaultItemRevision
-from app.schemas.vault import CreateVaultItemRequest, UpdateVaultItemRequest
+from app.schemas.vault import (
+    CreateFolderRequest,
+    CreateVaultItemRequest,
+    FolderTreeNode,
+    UpdateFolderRequest,
+    UpdateVaultItemRequest,
+)
 
 
 class VaultItemNotFoundError(Exception):
@@ -21,6 +28,26 @@ class VaultItemForbiddenError(Exception):
 
 
 class VaultItemRevisionNotFoundError(Exception):
+    pass
+
+
+class FolderNotFoundError(Exception):
+    pass
+
+
+class FolderForbiddenError(Exception):
+    pass
+
+
+class ParentFolderNotFoundError(Exception):
+    pass
+
+
+class FolderInvalidMoveError(Exception):
+    pass
+
+
+class FolderNoFieldsToUpdateError(Exception):
     pass
 
 
@@ -68,9 +95,216 @@ async def _get_active_item_in_org(
     return result.scalar_one_or_none()
 
 
+async def _get_folder_in_org(
+    db: AsyncSession,
+    *,
+    folder_id: uuid.UUID,
+    org_id: uuid.UUID,
+) -> Folder | None:
+    result = await db.execute(
+        select(Folder).where(
+            Folder.id == folder_id,
+            Folder.org_id == org_id,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 def _ensure_owner_access(item: VaultItem, *, user_id: uuid.UUID) -> None:
     if _normalize_uuid(item.owner_id) != _normalize_uuid(user_id):
         raise VaultItemForbiddenError
+
+
+def _ensure_folder_owner_access(folder: Folder, *, user_id: uuid.UUID) -> None:
+    if _normalize_uuid(folder.owner_id) != _normalize_uuid(user_id):
+        raise FolderForbiddenError
+
+
+def _build_folder_tree(folders: list[Folder]) -> list[FolderTreeNode]:
+    nodes_by_id: dict[str, FolderTreeNode] = {}
+    child_ids_by_parent: dict[str, list[str]] = {}
+    root_ids: list[str] = []
+
+    def _key(folder_id: uuid.UUID) -> str:
+        return _normalize_uuid(folder_id)
+
+    for folder in sorted(folders, key=lambda value: (value.name.lower(), str(value.id))):
+        folder_key = _key(folder.id)
+        node = FolderTreeNode(
+            id=folder.id,
+            name=folder.name,
+            parent_folder_id=folder.parent_folder_id,
+            created_at=folder.created_at,
+            children=[],
+        )
+        nodes_by_id[folder_key] = node
+        if folder.parent_folder_id is None:
+            root_ids.append(folder_key)
+            continue
+        parent_key = _key(folder.parent_folder_id)
+        child_ids_by_parent.setdefault(parent_key, []).append(folder_key)
+
+    for parent_key, child_keys in child_ids_by_parent.items():
+        parent_node = nodes_by_id.get(parent_key)
+        if parent_node is None:
+            root_ids.extend(child_keys)
+            continue
+        for child_key in child_keys:
+            child_node = nodes_by_id.get(child_key)
+            if child_node is not None:
+                parent_node.children.append(child_node)
+
+    seen: set[str] = set()
+    ordered_roots: list[FolderTreeNode] = []
+    for root_key in root_ids:
+        if root_key in seen:
+            continue
+        root_node = nodes_by_id.get(root_key)
+        if root_node is not None:
+            seen.add(root_key)
+            ordered_roots.append(root_node)
+    return ordered_roots
+
+
+async def create_folder(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    payload: CreateFolderRequest,
+) -> Folder:
+    parent_folder_id = payload.parent_folder_id
+    if parent_folder_id is not None:
+        parent_folder = await _get_folder_in_org(
+            db,
+            folder_id=parent_folder_id,
+            org_id=current_user.org_id,
+        )
+        if parent_folder is None:
+            raise ParentFolderNotFoundError
+        _ensure_folder_owner_access(parent_folder, user_id=current_user.id)
+
+    folder = Folder(
+        org_id=current_user.org_id,
+        owner_id=current_user.id,
+        parent_folder_id=parent_folder_id,
+        name=payload.name.strip(),
+    )
+    db.add(folder)
+    await db.commit()
+    await db.refresh(folder)
+    return folder
+
+
+async def list_folders_tree(
+    db: AsyncSession,
+    *,
+    current_user: User,
+) -> list[FolderTreeNode]:
+    result = await db.execute(
+        select(Folder)
+        .where(
+            _uuid_match(Folder.owner_id, current_user.id),
+            _uuid_match(Folder.org_id, current_user.org_id),
+        )
+        .order_by(Folder.created_at.asc(), Folder.id.asc())
+    )
+    folders = list(result.scalars().all())
+    return _build_folder_tree(folders)
+
+
+async def update_folder(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    folder_id: uuid.UUID,
+    payload: UpdateFolderRequest,
+) -> Folder:
+    folder = await _get_folder_in_org(db, folder_id=folder_id, org_id=current_user.org_id)
+    if folder is None:
+        raise FolderNotFoundError
+    _ensure_folder_owner_access(folder, user_id=current_user.id)
+
+    has_name_update = "name" in payload.model_fields_set
+    has_parent_update = "parent_folder_id" in payload.model_fields_set
+    if not has_name_update and not has_parent_update:
+        raise FolderNoFieldsToUpdateError
+
+    if has_name_update and payload.name is not None:
+        next_name = payload.name.strip()
+    else:
+        next_name = None
+
+    if has_parent_update:
+        next_parent_id = payload.parent_folder_id
+        if next_parent_id is not None:
+            if _normalize_uuid(next_parent_id) == _normalize_uuid(folder.id):
+                raise FolderInvalidMoveError
+            parent_folder = await _get_folder_in_org(
+                db,
+                folder_id=next_parent_id,
+                org_id=current_user.org_id,
+            )
+            if parent_folder is None:
+                raise ParentFolderNotFoundError
+            _ensure_folder_owner_access(parent_folder, user_id=current_user.id)
+            ancestor_id = parent_folder.parent_folder_id
+            while ancestor_id is not None:
+                if _normalize_uuid(ancestor_id) == _normalize_uuid(folder.id):
+                    raise FolderInvalidMoveError
+                ancestor_folder = await _get_folder_in_org(
+                    db,
+                    folder_id=ancestor_id,
+                    org_id=current_user.org_id,
+                )
+                if ancestor_folder is None:
+                    break
+                ancestor_id = ancestor_folder.parent_folder_id
+    else:
+        next_parent_id = folder.parent_folder_id
+
+    if next_name is not None:
+        folder.name = next_name
+    if has_parent_update:
+        folder.parent_folder_id = next_parent_id
+
+    await db.commit()
+    await db.refresh(folder)
+    return folder
+
+
+async def delete_folder(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    folder_id: uuid.UUID,
+) -> None:
+    folder = await _get_folder_in_org(db, folder_id=folder_id, org_id=current_user.org_id)
+    if folder is None:
+        raise FolderNotFoundError
+    _ensure_folder_owner_access(folder, user_id=current_user.id)
+
+    await db.execute(
+        update(Folder)
+        .where(
+            _uuid_match(Folder.parent_folder_id, folder.id),
+            _uuid_match(Folder.owner_id, current_user.id),
+            _uuid_match(Folder.org_id, current_user.org_id),
+        )
+        .values(parent_folder_id=None)
+    )
+
+    await db.execute(
+        update(VaultItem)
+        .where(
+            _uuid_match(VaultItem.folder_id, folder.id),
+            _uuid_match(VaultItem.owner_id, current_user.id),
+            _uuid_match(VaultItem.org_id, current_user.org_id),
+        )
+        .values(folder_id=None)
+    )
+
+    await db.delete(folder)
+    await db.commit()
 
 
 async def _create_audit_log(

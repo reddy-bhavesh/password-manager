@@ -278,3 +278,19 @@ Key decisions / gotchas:
 - Reused existing revision-pruning policy (keep last 10) during restore so revision retention stays consistent with update semantics.
 Files created/modified: packages/backend/app/api/v1/vault.py, packages/backend/app/services/vault.py, packages/backend/app/schemas/vault.py, packages/backend/app/models/audit_log.py, packages/backend/alembic/versions/0008_add_restore_item_audit_action.py, packages/backend/tests/test_vault_restore_history_integration.py, prd.json, progress.txt
 ---
+---
+[VAULT-005] — Folder management endpoints
+Date: 2026-02-20
+What was done:
+- Added folder CRUD API endpoints: `POST /api/v1/vault/folders`, `GET /api/v1/vault/folders`, `PATCH /api/v1/vault/folders/{id}`, and `DELETE /api/v1/vault/folders/{id}`.
+- Implemented nested folder creation with optional `parent_folder_id` validation and owner/org access checks.
+- Implemented tree-shaped folder listing for the current user.
+- Implemented folder rename/move with invalid-move prevention (self/descendant) and partial update semantics.
+- Implemented delete cascade behavior: child folders detached (`parent_folder_id=NULL`) and folder-bound vault items detached (`folder_id=NULL`).
+- Added unit and integration tests for tree generation and full folder lifecycle behavior, including cascade and access control.
+- Verified with `python -m pytest -q` and `python -m compileall app`.
+Key decisions / gotchas:
+- Used UUID-normalized comparisons for folder/item ownership and relationship matching to keep behavior consistent across SQLite tests and MySQL runtime.
+- Performed delete cascade updates with SQL `UPDATE` statements instead of ORM row mutation to avoid UUID/enum row-matching edge cases in SQLite integration tests.
+Files created/modified: packages/backend/app/schemas/vault.py, packages/backend/app/services/vault.py, packages/backend/app/api/v1/vault.py, packages/backend/tests/test_vault_folders_unit.py, packages/backend/tests/test_vault_folders_integration.py, prd.json, progress.txt
+---

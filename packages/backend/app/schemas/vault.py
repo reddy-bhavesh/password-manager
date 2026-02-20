@@ -89,3 +89,44 @@ class VaultItemsPageResponse(BaseModel):
 class VaultItemRevisionResponse(BaseModel):
     revision_number: int
     created_at: datetime.datetime
+
+
+class CreateFolderRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    parent_folder_id: uuid.UUID | None = None
+
+
+class UpdateFolderRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=255)
+    parent_folder_id: uuid.UUID | None = None
+
+
+class FolderResponse(BaseModel):
+    id: uuid.UUID
+    org_id: uuid.UUID
+    owner_id: uuid.UUID
+    parent_folder_id: uuid.UUID | None
+    name: str
+    created_at: datetime.datetime
+
+    @classmethod
+    def from_folder(cls, folder: Any) -> "FolderResponse":
+        return cls(
+            id=folder.id,
+            org_id=folder.org_id,
+            owner_id=folder.owner_id,
+            parent_folder_id=folder.parent_folder_id,
+            name=folder.name,
+            created_at=folder.created_at,
+        )
+
+
+class FolderTreeNode(BaseModel):
+    id: uuid.UUID
+    name: str
+    parent_folder_id: uuid.UUID | None
+    created_at: datetime.datetime
+    children: list["FolderTreeNode"] = Field(default_factory=list)
+
+
+FolderTreeNode.model_rebuild()
