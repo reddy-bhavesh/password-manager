@@ -294,7 +294,7 @@
                                                    "Only org members can GET their own org",
                                                    "Integration tests for creation and retrieval"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "ORG-002",

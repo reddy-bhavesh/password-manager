@@ -294,3 +294,17 @@ Key decisions / gotchas:
 - Performed delete cascade updates with SQL `UPDATE` statements instead of ORM row mutation to avoid UUID/enum row-matching edge cases in SQLite integration tests.
 Files created/modified: packages/backend/app/schemas/vault.py, packages/backend/app/services/vault.py, packages/backend/app/api/v1/vault.py, packages/backend/tests/test_vault_folders_unit.py, packages/backend/tests/test_vault_folders_integration.py, prd.json, progress.txt
 ---
+---
+[ORG-001] — Organization creation and retrieval endpoints
+Date: 2026-02-20
+What was done:
+- Added protected org endpoints: POST /api/v1/org and GET /api/v1/org.
+- Implemented org service logic to create a new organization and promote the authenticated caller to owner in that org.
+- Added org request/response schemas with the required response shape.
+- Added integration tests covering create+retrieve flow and forbidden retrieval when no org record exists for the caller.
+- Verified backend test suite passes with python -m pytest -q packages/backend/tests.
+Key decisions / gotchas:
+- Used UUID-normalized SQL update for user promotion to avoid SQLite UUID row-matching edge cases seen in integration tests.
+- Returned 403 on org retrieval when the authenticated user has no resolvable organization row, enforcing member-only access.
+Files created/modified: packages/backend/app/api/v1/org.py, packages/backend/app/schemas/org.py, packages/backend/app/services/org.py, packages/backend/app/main.py, packages/backend/tests/test_org_endpoints_integration.py, prd.json, progress.txt
+---
