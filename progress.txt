@@ -251,3 +251,17 @@ Key decisions / gotchas:
 - Used UUID normalization in integration assertions because SQLite test storage can differ in UUID formatting.
 Files created/modified: packages/backend/app/services/vault.py, packages/backend/app/api/v1/vault.py, packages/backend/app/schemas/vault.py, packages/backend/tests/test_vault_item_lifecycle_integration.py, prd.json, progress.txt
 ---
+---
+[VAULT-003] — Full vault sync and delta sync endpoints
+Date: 2026-02-20
+What was done:
+- Added `GET /api/v1/vault` with owner-scoped pagination (`limit`, `offset`) returning only non-deleted vault items.
+- Added `GET /api/v1/vault/sync?since=<ISO8601>` with owner-scoped delta filtering on `updated_at` and exclusion of soft-deleted items.
+- Added `X-Vault-Revision` response header on both endpoints using a monotonic revision counter derived from the latest vault item `updated_at` for the user.
+- Added integration coverage that seeds 125 items and validates pagination, delta correctness, and deleted-item exclusion.
+- Added paginated vault response schema and wired new service-layer list/sync methods.
+Key decisions / gotchas:
+- Implemented UUID comparison with normalized `lower(replace(...))` matching to keep behavior consistent between SQLite tests and MySQL UUID storage formats.
+- Normalized timestamp parsing in sync filtering to avoid SQLite text/datetime comparison edge cases while preserving MySQL-compatible behavior.
+Files created/modified: packages/backend/app/api/v1/vault.py, packages/backend/app/services/vault.py, packages/backend/app/schemas/vault.py, packages/backend/tests/test_vault_sync_integration.py, prd.json, progress.txt
+---

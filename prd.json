@@ -253,7 +253,7 @@
                                                    "Response includes X-Vault-Revision header (monotonic counter)",
                                                    "Integration tests seeding \u003e100 items and validating delta correctness"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "VAULT-004",

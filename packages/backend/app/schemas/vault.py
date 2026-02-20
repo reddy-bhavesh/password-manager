@@ -73,3 +73,10 @@ class VaultItemResponse(BaseModel):
             updated_at=item.updated_at,
             deleted_at=item.deleted_at,
         )
+
+
+class VaultItemsPageResponse(BaseModel):
+    items: list[VaultItemResponse]
+    total: int
+    limit: int
+    offset: int

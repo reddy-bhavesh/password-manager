@@ -28,6 +28,26 @@ def _normalize_uuid(value: object) -> str:
     return str(value).replace("-", "").lower()
 
 
+def _uuid_match(column: object, value: object):
+    return func.lower(func.replace(column, "-", "")) == _normalize_uuid(value)
+
+
+def _to_utc_datetime(value: object) -> datetime.datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime.datetime):
+        if value.tzinfo is None:
+            return value.replace(tzinfo=datetime.UTC)
+        return value.astimezone(datetime.UTC)
+    if isinstance(value, str):
+        normalized = value.strip().replace("Z", "+00:00")
+        parsed = datetime.datetime.fromisoformat(normalized)
+        if parsed.tzinfo is None:
+            return parsed.replace(tzinfo=datetime.UTC)
+        return parsed.astimezone(datetime.UTC)
+    raise TypeError("Unsupported datetime value for vault revision counter.")
+
+
 async def _get_active_item_in_org(
     db: AsyncSession,
     *,
@@ -232,3 +252,76 @@ async def soft_delete_vault_item(
         now=deleted_at,
     )
     await db.commit()
+
+
+async def list_vault_items(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    limit: int,
+    offset: int,
+) -> tuple[list[VaultItem], int]:
+    total_result = await db.execute(
+        select(func.count(VaultItem.id)).where(
+            _uuid_match(VaultItem.owner_id, current_user.id),
+            _uuid_match(VaultItem.org_id, current_user.org_id),
+            VaultItem.deleted_at.is_(None),
+        )
+    )
+    total = int(total_result.scalar_one() or 0)
+
+    result = await db.execute(
+        select(VaultItem)
+        .where(
+            _uuid_match(VaultItem.owner_id, current_user.id),
+            _uuid_match(VaultItem.org_id, current_user.org_id),
+            VaultItem.deleted_at.is_(None),
+        )
+        .order_by(VaultItem.updated_at.desc(), VaultItem.id.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+    return list(result.scalars().all()), total
+
+
+async def list_vault_items_since(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    since: datetime.datetime,
+    limit: int,
+    offset: int,
+) -> tuple[list[VaultItem], int]:
+    result = await db.execute(
+        select(VaultItem)
+        .where(
+            _uuid_match(VaultItem.owner_id, current_user.id),
+            _uuid_match(VaultItem.org_id, current_user.org_id),
+            VaultItem.deleted_at.is_(None),
+        )
+        .order_by(VaultItem.updated_at.asc(), VaultItem.id.asc())
+    )
+    filtered_items: list[VaultItem] = []
+    for item in result.scalars().all():
+        updated_at = _to_utc_datetime(item.updated_at)
+        if updated_at is not None and updated_at > since:
+            filtered_items.append(item)
+    total = len(filtered_items)
+    return filtered_items[offset : offset + limit], total
+
+
+async def get_vault_revision_counter(
+    db: AsyncSession,
+    *,
+    current_user: User,
+) -> int:
+    result = await db.execute(
+        select(func.max(VaultItem.updated_at)).where(
+            _uuid_match(VaultItem.owner_id, current_user.id),
+            _uuid_match(VaultItem.org_id, current_user.org_id),
+        )
+    )
+    latest_update = _to_utc_datetime(result.scalar_one_or_none())
+    if latest_update is None:
+        return 0
+    return int(latest_update.timestamp() * 1_000_000)
