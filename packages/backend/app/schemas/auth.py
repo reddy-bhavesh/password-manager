@@ -82,3 +82,16 @@ class LoginResponse(BaseModel):
     access_token: str
     refresh_token: str
     user: AuthenticatedUserResponse
+
+
+class RefreshRequest(BaseModel):
+    refresh_token: str = Field(min_length=16, max_length=4096)
+
+
+class RefreshResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+
+
+class LogoutRequest(BaseModel):
+    refresh_token: str = Field(min_length=16, max_length=4096)

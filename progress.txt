@@ -11,6 +11,20 @@ Key decisions / gotchas:
 - Kept backend as a placeholder workspace package for Turborepo orchestration; Python service setup is deferred to INFRA-003.
 Files created/modified: package.json, turbo.json, .editorconfig, .gitignore, packages/backend/package.json, packages/web/package.json, packages/extension/package.json, prd.json, progress.txt
 ---
+[AUTH-003] — Token refresh and logout endpoints
+Date: 2026-02-20
+What was done:
+- Implemented `POST /api/v1/auth/refresh` to rotate refresh tokens, revoke the old session token, and return new access/refresh tokens.
+- Implemented `POST /api/v1/auth/logout` to revoke the session tied to the provided refresh token for the authenticated user.
+- Implemented `DELETE /api/v1/auth/sessions/{id}` to revoke a specific session for the authenticated user.
+- Added audit log emission for refresh (`REFRESH_TOKEN`), logout (`LOGOUT`), and explicit session revoke (`SESSION_REVOKE`), and also login (`LOGIN`) when a session is created.
+- Added new auth schemas and comprehensive unit/integration tests covering rotation replay rejection, session revocation, and audit log persistence.
+Key decisions / gotchas:
+- Added bearer-token parsing in auth routes for logout/session-revoke before the shared auth middleware story lands.
+- Adjusted user/session lookup logic to be UUID-format tolerant so SQLite integration tests and MySQL behavior both remain stable.
+- Updated prior login integration tests to include `audit_logs` test table setup since login now writes audit events.
+Files created/modified: packages/backend/app/api/v1/auth.py, packages/backend/app/schemas/auth.py, packages/backend/app/services/auth.py, packages/backend/tests/test_auth_login_integration.py, packages/backend/tests/test_auth_session_management_unit.py, packages/backend/tests/test_auth_session_management_integration.py, prd.json, progress.txt
+---
 ---
 [INFRA-002]  Docker Compose dev environment
 Date: 2026-02-20
@@ -157,8 +171,6 @@ Key decisions / gotchas:
 - Moved model registration out of `app/db/base.py` to avoid circular imports when service modules import models directly.
 Files created/modified: packages/backend/app/main.py, packages/backend/app/api/__init__.py, packages/backend/app/api/v1/__init__.py, packages/backend/app/api/v1/auth.py, packages/backend/app/core/problems.py, packages/backend/app/security/__init__.py, packages/backend/app/security/password.py, packages/backend/app/schemas/auth.py, packages/backend/app/services/auth.py, packages/backend/app/models/user.py, packages/backend/app/models/__init__.py, packages/backend/app/db/base.py, packages/backend/app/db/model_registry.py, packages/backend/alembic/env.py, packages/backend/alembic/versions/0006_add_auth_verifier_hash_to_users.py, packages/backend/pyproject.toml, packages/backend/tests/test_auth_register_unit.py, packages/backend/tests/test_auth_register_integration.py, prd.json, progress.txt
 ---
-
-
 ---
 [AUTH-002] — Login endpoint with JWT access + refresh token issuance
 Date: 2026-02-20

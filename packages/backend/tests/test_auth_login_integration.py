@@ -82,6 +82,23 @@ async def test_preauth_and_login_issue_tokens_and_store_refresh_hash() -> None:
                 """
             )
         )
+        await conn.execute(
+            text(
+                """
+                CREATE TABLE audit_logs (
+                    id TEXT PRIMARY KEY,
+                    org_id TEXT NOT NULL,
+                    actor_id TEXT NULL,
+                    action TEXT NOT NULL,
+                    target_id TEXT NULL,
+                    ip_address TEXT NOT NULL,
+                    user_agent TEXT NOT NULL,
+                    geo_location TEXT NOT NULL,
+                    timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+                )
+                """
+            )
+        )
 
     async def override_get_db_session():
         async with session_factory() as session:
@@ -248,6 +265,23 @@ async def test_login_rate_limiting_after_more_than_five_failures_from_same_ip() 
                     created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     expires_at TEXT NOT NULL,
                     revoked_at TEXT NULL
+                )
+                """
+            )
+        )
+        await conn.execute(
+            text(
+                """
+                CREATE TABLE audit_logs (
+                    id TEXT PRIMARY KEY,
+                    org_id TEXT NOT NULL,
+                    actor_id TEXT NULL,
+                    action TEXT NOT NULL,
+                    target_id TEXT NULL,
+                    ip_address TEXT NOT NULL,
+                    user_agent TEXT NOT NULL,
+                    geo_location TEXT NOT NULL,
+                    timestamp TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
                 )
                 """
             )

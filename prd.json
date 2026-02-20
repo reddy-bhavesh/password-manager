@@ -179,7 +179,7 @@
                 "All actions emit an audit log entry",
                 "Unit + integration tests for all three endpoints"
             ],
-            "passes": false
+            "passes": true
         },
         {
             "id": "AUTH-004",
