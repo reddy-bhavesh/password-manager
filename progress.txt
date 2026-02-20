@@ -11,3 +11,16 @@ Key decisions / gotchas:
 - Kept backend as a placeholder workspace package for Turborepo orchestration; Python service setup is deferred to INFRA-003.
 Files created/modified: package.json, turbo.json, .editorconfig, .gitignore, packages/backend/package.json, packages/web/package.json, packages/extension/package.json, prd.json, progress.txt
 ---
+---
+[INFRA-002] — Docker Compose dev environment
+Date: 2026-02-20
+What was done:
+- Added `docker-compose.dev.yml` with MySQL 8.0, MinIO, and Redis services for local development.
+- Added health checks for MySQL (`mysqladmin ping`), MinIO (`/minio/health/live`), and Redis (`redis-cli ping`).
+- Added `.env.example` documenting all environment variables consumed by `docker-compose.dev.yml`.
+- Marked story INFRA-002 as passed in `prd.json`.
+Key decisions / gotchas:
+- Added dedicated MySQL health check credentials (`MYSQL_HEALTHCHECK_USER`/`MYSQL_HEALTHCHECK_PASSWORD`) so health checks are explicit and configurable.
+- Pinned MinIO image to a dated release tag for deterministic local environments.
+Files created/modified: docker-compose.dev.yml, .env.example, prd.json, progress.txt
+---
