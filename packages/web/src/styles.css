@@ -316,6 +316,12 @@ a {
   width: 100%;
 }
 
+.btn-sm {
+  padding: 0.45rem 0.7rem;
+  border-radius: 10px;
+  font-size: 0.84rem;
+}
+
 .vault-dashboard {
   padding: 1rem;
   display: grid;
@@ -387,6 +393,12 @@ a {
   align-items: center;
   justify-content: space-between;
   gap: 0.5rem;
+}
+
+.vault-panel-heading-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
 }
 
 .vault-panel-heading h2 {
@@ -629,6 +641,91 @@ a {
   letter-spacing: 0.12em;
 }
 
+.vault-dialog-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 7, 16, 0.72);
+  backdrop-filter: blur(4px);
+  z-index: 40;
+}
+
+.vault-dialog-content {
+  position: fixed;
+  z-index: 50;
+  top: 50%;
+  left: 50%;
+  width: min(680px, calc(100vw - 1.5rem));
+  max-height: calc(100vh - 1.5rem);
+  overflow: auto;
+  transform: translate(-50%, -50%);
+  border-radius: 18px;
+  border: 1px solid var(--color-border);
+  background:
+    linear-gradient(180deg, rgba(108, 99, 255, 0.06), transparent 26%),
+    var(--color-bg-elevated);
+  box-shadow: 0 24px 60px -20px var(--color-shadow);
+  padding: 1rem;
+}
+
+.vault-dialog-content:focus {
+  outline: none;
+}
+
+.vault-dialog-title {
+  font-size: 1.1rem;
+  letter-spacing: -0.02em;
+}
+
+.vault-dialog-description {
+  color: var(--color-text-muted);
+  margin-top: 0.25rem;
+  margin-bottom: 0.8rem;
+}
+
+.vault-item-form {
+  margin-top: 0.35rem;
+}
+
+.vault-item-form-fields {
+  border-top: 1px solid var(--color-border);
+  padding-top: 0.8rem;
+}
+
+.vault-select,
+.vault-textarea {
+  width: 100%;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface-strong);
+  padding: 0.78rem 0.9rem;
+  outline: none;
+  transition: box-shadow 120ms ease, border-color 120ms ease;
+}
+
+.vault-select:focus-visible,
+.vault-textarea:focus-visible {
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 4px var(--color-ring);
+}
+
+.vault-textarea {
+  resize: vertical;
+  min-height: 9rem;
+}
+
+.vault-form-grid-2 {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.vault-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.35rem;
+}
+
 .vault-code-block {
   border-radius: 10px;
   border: 1px solid var(--color-border);
@@ -781,5 +878,17 @@ a {
   .vault-shell,
   .vault-dashboard {
     border-radius: 18px;
+  }
+
+  .vault-dialog-content {
+    width: calc(100vw - 1rem);
+    max-height: calc(100vh - 1rem);
+    padding: 0.85rem;
+    border-radius: 16px;
+  }
+
+  .vault-form-grid-2 {
+    grid-template-columns: 1fr;
+    gap: 0;
   }
 }

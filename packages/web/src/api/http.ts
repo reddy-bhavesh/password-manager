@@ -20,7 +20,7 @@ export class ApiError extends Error {
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "";
 
 type JsonRequestOptions = {
-  method: "GET" | "POST";
+  method: "GET" | "POST" | "PUT";
   body?: Record<string, unknown>;
   accessToken?: string | null;
   signal?: AbortSignal;
@@ -74,10 +74,26 @@ export async function getJson<TResponse>(
 
 export async function postJson<TResponse, TBody extends Record<string, unknown>>(
   path: string,
-  body: TBody
+  body: TBody,
+  options?: { accessToken?: string | null; signal?: AbortSignal }
 ): Promise<TResponse> {
   return requestJson<TResponse>(path, {
     method: "POST",
-    body
+    body,
+    accessToken: options?.accessToken,
+    signal: options?.signal
+  });
+}
+
+export async function putJson<TResponse, TBody extends Record<string, unknown>>(
+  path: string,
+  body: TBody,
+  options?: { accessToken?: string | null; signal?: AbortSignal }
+): Promise<TResponse> {
+  return requestJson<TResponse>(path, {
+    method: "PUT",
+    body,
+    accessToken: options?.accessToken,
+    signal: options?.signal
   });
 }

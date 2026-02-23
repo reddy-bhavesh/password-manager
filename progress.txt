@@ -451,4 +451,18 @@ Key decisions / gotchas:
 - Applied FE-004 behavior to encrypted fields (`encrypted_data`, `encrypted_key`) per PDR Item Detail guidance, since client-side decryption is introduced later in FE-005.
 - Used native `<button>` controls for reveal/copy so Enter/Space keyboard activation works without custom key handlers.
 Files created/modified: packages/web/src/routes/VaultPage.tsx, packages/web/src/styles.css, prd.json, progress.txt
+------
+[FE-005] - Create and edit vault item modal
+Date: 2026-02-23
+What was done:
+- Added a Radix Dialog-based vault item modal with create/edit flows, wired to the existing vault dashboard (`New Item` and `Edit` actions).
+- Implemented React Hook Form + Zod validation for Login, Secure Note, and Credit Card item types with dynamic field switching.
+- Added client-side libsodium (WASM via `libsodium-wrappers-sumo`) encryption for item fields before `POST`/`PUT`, plus best-effort edit prefill by decrypting VaultGuard-formatted ciphertext in-session.
+- Wired TanStack Query invalidation after successful save so the vault item list refreshes and the saved item is re-selected.
+- Added Vitest unit tests covering libsodium encrypt/decrypt round-trip and wrong-key failure.
+Key decisions / gotchas:
+- Stored encrypted payloads in a versioned client envelope (`vg1`) and wrapped per-item keys with a session-scoped key in `sessionStorage` to support edit prefill without server-side decryption.
+- Existing items created before FE-005 may not decrypt for prefill in the current browser session; the modal shows a warning and allows re-entry/re-save.
+- Added a local TypeScript module declaration for `libsodium-wrappers-sumo` because the package does not ship typings.
+Files created/modified: packages/web/package.json, package-lock.json, packages/web/src/api/http.ts, packages/web/src/features/vault/api.ts, packages/web/src/features/vault/VaultItemModal.tsx, packages/web/src/features/vault/crypto.ts, packages/web/src/features/vault/crypto.test.ts, packages/web/src/features/vault/validation.ts, packages/web/src/vite-env-libsodium.d.ts, packages/web/src/routes/VaultPage.tsx, packages/web/src/styles.css, prd.json, progress.txt
 ---

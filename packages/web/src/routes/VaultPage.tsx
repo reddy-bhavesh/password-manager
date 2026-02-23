@@ -5,6 +5,7 @@ import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError } from "../api/http";
 import { useAuthStore } from "../features/auth/store";
 import { fetchVaultFolders, fetchVaultItems, type VaultFolderTreeNode, type VaultItemRecord } from "../features/vault/api";
+import { VaultItemModal, isSupportedEditableVaultItemType } from "../features/vault/VaultItemModal";
 
 type VaultDashboardLayoutProps = {
   userName: string | null;
@@ -18,6 +19,7 @@ type VaultDashboardLayoutProps = {
 
 type PanelBodyProps = {
   title: string;
+  actions?: ReactNode;
   children: ReactNode;
 };
 
@@ -125,7 +127,7 @@ function Panel({ className, tone = "default", children }: PanelProps) {
   return <section className={mergeClassNames("vault-panel-card", `vault-panel-card--${tone}`, className)}>{children}</section>;
 }
 
-function PanelBody({ title, children }: PanelBodyProps) {
+function PanelBody({ title, actions, children }: PanelBodyProps) {
   const reducedMotion = useReducedMotion();
 
   return (
@@ -137,6 +139,7 @@ function PanelBody({ title, children }: PanelBodyProps) {
     >
       <div className="vault-panel-heading">
         <h2>{title}</h2>
+        {actions ? <div className="vault-panel-heading-actions">{actions}</div> : null}
       </div>
       {children}
     </motion.div>
@@ -497,6 +500,8 @@ export function VaultPage() {
 
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [selectedItemId, setSelectedItemId] = useState<string | null>(null);
+  const [itemModalOpen, setItemModalOpen] = useState(false);
+  const [itemModalMode, setItemModalMode] = useState<"create" | "edit">("create");
 
   const foldersQuery = useQuery({
     queryKey: ["vault", "folders"],
@@ -530,6 +535,20 @@ export function VaultPage() {
     [items, selectedItemId]
   );
 
+  function openCreateItemModal() {
+    setItemModalMode("create");
+    setItemModalOpen(true);
+  }
+
+  function openEditItemModal() {
+    if (!selectedItem || !isSupportedEditableVaultItemType(selectedItem.type)) {
+      return;
+    }
+
+    setItemModalMode("edit");
+    setItemModalOpen(true);
+  }
+
   if (!accessToken) {
     return (
       <section className="vault-dashboard" aria-labelledby="vault-login-required-title">
@@ -550,42 +569,76 @@ export function VaultPage() {
   }
 
   return (
-    <VaultDashboardLayout
-      userName={user?.name ?? null}
-      mobileSidebarOpen={mobileSidebarOpen}
-      onToggleSidebar={() => setMobileSidebarOpen((open) => !open)}
-      onClearSession={() => clearSession()}
-      sidebar={
-        <PanelBody title="Folders">
-          <FolderSidebarContent
-            folders={foldersQuery.data ?? []}
-            isLoading={foldersQuery.isLoading}
-            isError={foldersQuery.isError}
-            errorMessage={foldersQuery.isError ? formatQueryError(foldersQuery.error) : null}
-          />
-        </PanelBody>
-      }
-      list={
-        <PanelBody title="Items">
-          <VaultItemListContent
-            items={items}
-            total={total}
-            selectedItemId={selectedItemId}
-            onSelectItem={(itemId) => {
-              setSelectedItemId(itemId);
-              setMobileSidebarOpen(false);
-            }}
-            isLoading={itemsQuery.isLoading}
-            isError={itemsQuery.isError}
-            errorMessage={itemsQuery.isError ? formatQueryError(itemsQuery.error) : null}
-          />
-        </PanelBody>
-      }
-      detail={
-        <PanelBody title="Detail">
-          <VaultDetailContent item={selectedItem} />
-        </PanelBody>
-      }
-    />
+    <>
+      <VaultDashboardLayout
+        userName={user?.name ?? null}
+        mobileSidebarOpen={mobileSidebarOpen}
+        onToggleSidebar={() => setMobileSidebarOpen((open) => !open)}
+        onClearSession={() => clearSession()}
+        sidebar={
+          <PanelBody title="Folders">
+            <FolderSidebarContent
+              folders={foldersQuery.data ?? []}
+              isLoading={foldersQuery.isLoading}
+              isError={foldersQuery.isError}
+              errorMessage={foldersQuery.isError ? formatQueryError(foldersQuery.error) : null}
+            />
+          </PanelBody>
+        }
+        list={
+          <PanelBody
+            title="Items"
+            actions={
+              <button type="button" className="btn btn-primary btn-sm" onClick={openCreateItemModal}>
+                New Item
+              </button>
+            }
+          >
+            <VaultItemListContent
+              items={items}
+              total={total}
+              selectedItemId={selectedItemId}
+              onSelectItem={(itemId) => {
+                setSelectedItemId(itemId);
+                setMobileSidebarOpen(false);
+              }}
+              isLoading={itemsQuery.isLoading}
+              isError={itemsQuery.isError}
+              errorMessage={itemsQuery.isError ? formatQueryError(itemsQuery.error) : null}
+            />
+          </PanelBody>
+        }
+        detail={
+          <PanelBody
+            title="Detail"
+            actions={
+              <button
+                type="button"
+                className="btn btn-secondary btn-sm"
+                onClick={openEditItemModal}
+                disabled={!selectedItem || !isSupportedEditableVaultItemType(selectedItem.type)}
+              >
+                Edit
+              </button>
+            }
+          >
+            <VaultDetailContent item={selectedItem} />
+          </PanelBody>
+        }
+      />
+
+      <VaultItemModal
+        accessToken={accessToken}
+        open={itemModalOpen}
+        mode={itemModalMode}
+        item={itemModalMode === "edit" ? selectedItem : null}
+        folders={foldersQuery.data ?? []}
+        onOpenChange={setItemModalOpen}
+        onSaved={(savedItemId) => {
+          setSelectedItemId(savedItemId);
+          setMobileSidebarOpen(false);
+        }}
+      />
+    </>
   );
 }

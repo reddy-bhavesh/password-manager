@@ -457,7 +457,7 @@
                                                    "Successful save closes modal and refreshes item list via TanStack Query invalidation",
                                                    "Unit tests for libsodium encrypt/decrypt round-trip"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "FE-006",

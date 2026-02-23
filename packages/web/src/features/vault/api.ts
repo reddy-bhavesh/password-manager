@@ -1,4 +1,4 @@
-import { getJson } from "../../api/http";
+import { getJson, postJson, putJson } from "../../api/http";
 
 export type VaultFolderTreeNode = {
   id: string;
@@ -30,6 +30,21 @@ export type VaultItemsPageResponse = {
   offset: number;
 };
 
+export type VaultItemWriteRequest = {
+  type: "login" | "secure_note" | "credit_card";
+  encrypted_data: string;
+  encrypted_key: string;
+  name: string;
+  folder_id: string | null;
+};
+
+export type VaultItemCreatedResponse = {
+  id: string;
+  type: string;
+  name: string;
+  created_at: string;
+};
+
 export async function fetchVaultFolders(accessToken: string, signal?: AbortSignal): Promise<VaultFolderTreeNode[]> {
   return getJson<VaultFolderTreeNode[]>("/api/v1/vault/folders", {
     accessToken,
@@ -55,6 +70,29 @@ export async function fetchVaultItems(
   const suffix = search.size > 0 ? `?${search.toString()}` : "";
 
   return getJson<VaultItemsPageResponse>(`/api/v1/vault${suffix}`, {
+    accessToken,
+    signal
+  });
+}
+
+export async function createVaultItem(
+  accessToken: string,
+  payload: VaultItemWriteRequest,
+  signal?: AbortSignal
+): Promise<VaultItemCreatedResponse> {
+  return postJson<VaultItemCreatedResponse, VaultItemWriteRequest>("/api/v1/vault/items", payload, {
+    accessToken,
+    signal
+  });
+}
+
+export async function updateVaultItem(
+  accessToken: string,
+  itemId: string,
+  payload: VaultItemWriteRequest,
+  signal?: AbortSignal
+): Promise<VaultItemRecord> {
+  return putJson<VaultItemRecord, VaultItemWriteRequest>(`/api/v1/vault/items/${itemId}`, payload, {
     accessToken,
     signal
   });
