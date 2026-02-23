@@ -19,17 +19,30 @@ export class ApiError extends Error {
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL?.replace(/\/$/, "") ?? "";
 
-export async function postJson<TResponse, TBody extends Record<string, unknown>>(
-  path: string,
-  body: TBody
-): Promise<TResponse> {
+type JsonRequestOptions = {
+  method: "GET" | "POST";
+  body?: Record<string, unknown>;
+  accessToken?: string | null;
+  signal?: AbortSignal;
+};
+
+async function requestJson<TResponse>(path: string, options: JsonRequestOptions): Promise<TResponse> {
+  const headers: Record<string, string> = {};
+
+  if (options.body) {
+    headers["Content-Type"] = "application/json";
+  }
+
+  if (options.accessToken) {
+    headers.Authorization = `Bearer ${options.accessToken}`;
+  }
+
   const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
+    method: options.method,
+    headers,
     credentials: "include",
-    body: JSON.stringify(body)
+    signal: options.signal,
+    body: options.body ? JSON.stringify(options.body) : undefined
   });
 
   const contentType = response.headers.get("content-type") ?? "";
@@ -46,4 +59,25 @@ export async function postJson<TResponse, TBody extends Record<string, unknown>>
   }
 
   return payload as TResponse;
+}
+
+export async function getJson<TResponse>(
+  path: string,
+  options?: { accessToken?: string | null; signal?: AbortSignal }
+): Promise<TResponse> {
+  return requestJson<TResponse>(path, {
+    method: "GET",
+    accessToken: options?.accessToken,
+    signal: options?.signal
+  });
+}
+
+export async function postJson<TResponse, TBody extends Record<string, unknown>>(
+  path: string,
+  body: TBody
+): Promise<TResponse> {
+  return requestJson<TResponse>(path, {
+    method: "POST",
+    body
+  });
 }

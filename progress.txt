@@ -423,3 +423,18 @@ Key decisions / gotchas:
 - Kept validation tests schema-focused (Vitest + Zod) to satisfy acceptance criteria without adding DOM test dependencies.
 Files created/modified: packages/web/src/App.tsx, packages/web/src/main.tsx, packages/web/src/styles.css, packages/web/src/api/http.ts, packages/web/src/features/auth/api.ts, packages/web/src/features/auth/store.ts, packages/web/src/features/auth/validation.ts, packages/web/src/features/auth/validation.test.ts, packages/web/src/lib/zodResolver.ts, packages/web/src/routes/AuthLayout.tsx, packages/web/src/routes/HomeRoute.tsx, packages/web/src/routes/LoginPage.tsx, packages/web/src/routes/MfaPage.tsx, packages/web/src/routes/VaultPage.tsx, packages/web/src/vite-env.d.ts, packages/backend/app/api/v1/auth.py, prd.json, progress.txt
 ---
+---
+[FE-003] — Vault dashboard layout (3-panel)
+Date: 2026-02-23
+What was done:
+- Replaced the `/vault` placeholder with a responsive 3-panel dashboard (folders sidebar, item list, detail panel) and a mobile sidebar toggle for widths below 768px.
+- Added TanStack Query-powered fetching for `GET /api/v1/vault/folders` and `GET /api/v1/vault` with explicit loading/error states in the sidebar and list panels.
+- Added right-panel item detail rendering driven by list selection and Framer Motion fade-in panel animations that respect `prefers-reduced-motion`.
+- Added a Vitest snapshot test for the dashboard layout structure and generated the snapshot artifact.
+- Verified `npm run typecheck`, `npm run test`, and `npm run build` in `packages/web`.
+Key decisions / gotchas:
+- Added a shared authenticated `getJson` helper to the frontend HTTP client instead of duplicating fetch logic in the vault feature.
+- Kept detail rendering sourced from the vault list payload (no extra item-detail request) because the list endpoint already returns the fields needed for the FE-003 panel.
+- Implemented the mobile sidebar as a collapsible panel in the same DOM flow (instead of an overlay) to keep the layout simple and snapshotable for this story.
+Files created/modified: packages/web/src/api/http.ts, packages/web/src/features/vault/api.ts, packages/web/src/routes/VaultPage.tsx, packages/web/src/routes/VaultPage.test.tsx, packages/web/src/routes/__snapshots__/VaultPage.test.tsx.snap, packages/web/src/styles.css, prd.json, progress.txt
+---

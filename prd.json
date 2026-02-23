@@ -427,7 +427,7 @@
                                                    "Framer Motion fade-in animation on panel mount (respects prefers-reduced-motion)",
                                                    "Vitest snapshot test for layout structure"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "FE-004",
