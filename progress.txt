@@ -1,4 +1,4 @@
-Ôªø---
+---
 [INFRA-001]  Initialize monorepo with Turborepo
 Date: 2026-02-20
 What was done:
@@ -129,7 +129,7 @@ Key decisions / gotchas:
 Files created/modified: packages/backend/alembic/versions/0004_create_folders_collections_and_members.py, packages/backend/app/models/folder.py, packages/backend/app/models/vault_item.py, packages/backend/app/models/__init__.py, packages/backend/app/db/base.py, prd.json, progress.txt
 ---
 ---
-[DB-004] ‚Äî Create AuditLog and Session tables migration
+[DB-004] ó Create AuditLog and Session tables migration
 Date: 2026-02-20
 What was done:
 - Added Alembic revision `0005_create_audit_logs_and_sessions` creating `audit_logs` and `sessions` with required columns, foreign keys, and defaults.
@@ -143,7 +143,7 @@ Key decisions / gotchas:
 Files created/modified: packages/backend/alembic/versions/0005_create_audit_logs_and_sessions.py, packages/backend/app/models/audit_log.py, packages/backend/app/models/auth_session.py, packages/backend/app/models/__init__.py, packages/backend/app/db/base.py, prd.json, progress.txt
 ---
 ---
-[AUTH-001] ‚Äî User registration endpoint with Argon2id password hashing
+[AUTH-001] ó User registration endpoint with Argon2id password hashing
 Date: 2026-02-20
 What was done:
 - Implemented `POST /api/v1/auth/register` at `/api/v1/auth/register` with request validation and `201` response payload.
@@ -159,7 +159,7 @@ Key decisions / gotchas:
 Files created/modified: packages/backend/app/main.py, packages/backend/app/api/__init__.py, packages/backend/app/api/v1/__init__.py, packages/backend/app/api/v1/auth.py, packages/backend/app/core/problems.py, packages/backend/app/security/__init__.py, packages/backend/app/security/password.py, packages/backend/app/schemas/auth.py, packages/backend/app/services/auth.py, packages/backend/app/models/user.py, packages/backend/app/models/__init__.py, packages/backend/app/db/base.py, packages/backend/app/db/model_registry.py, packages/backend/alembic/env.py, packages/backend/alembic/versions/0006_add_auth_verifier_hash_to_users.py, packages/backend/pyproject.toml, packages/backend/tests/test_auth_register_unit.py, packages/backend/tests/test_auth_register_integration.py, prd.json, progress.txt
 ---
 ---
-[AUTH-002] ‚Äî Login endpoint with JWT access + refresh token issuance
+[AUTH-002] ó Login endpoint with JWT access + refresh token issuance
 Date: 2026-02-20
 What was done:
 - Added `POST /api/v1/auth/preauth` returning Argon2id parameters for login KDF negotiation.
@@ -177,7 +177,7 @@ Files created/modified: packages/backend/app/api/v1/auth.py, packages/backend/ap
 ---
 
 ---
-[AUTH-003] ‚Äî Token refresh and logout endpoints
+[AUTH-003] ó Token refresh and logout endpoints
 Date: 2026-02-20
 What was done:
 - Implemented `POST /api/v1/auth/refresh` to rotate refresh tokens, revoke the old session token, and return new access/refresh tokens.
@@ -193,7 +193,7 @@ Files created/modified: packages/backend/app/api/v1/auth.py, packages/backend/ap
 ---
 
 ---
-[AUTH-004] ‚Äî TOTP MFA enrollment and verification
+[AUTH-004] ó TOTP MFA enrollment and verification
 Date: 2026-02-20
 What was done:
 - Added TOTP MFA domain support with persistent enrollment records, backup-code hashing, and confirmation state tracking.
@@ -209,7 +209,7 @@ Key decisions / gotchas:
 Files created/modified: packages/backend/app/models/mfa_totp_credential.py, packages/backend/alembic/versions/0007_create_mfa_totp_credentials.py, packages/backend/app/db/model_registry.py, packages/backend/app/core/settings.py, packages/backend/app/security/tokens.py, packages/backend/app/services/auth.py, packages/backend/app/schemas/auth.py, packages/backend/app/api/v1/auth.py, packages/backend/tests/test_auth_mfa_integration.py, packages/backend/tests/test_auth_tokens_unit.py, packages/backend/pyproject.toml, prd.json, progress.txt
 ---
 ---
-[AUTH-005] ‚Äî JWT auth middleware / FastAPI dependency
+[AUTH-005] ó JWT auth middleware / FastAPI dependency
 Date: 2026-02-20
 What was done:
 - Added shared auth dependencies: `get_access_token`, `get_current_user`, `require_role`, and `require_admin`.
@@ -221,7 +221,7 @@ Key decisions / gotchas:
 - Continued using centralized token validation (`validate_access_token`) to enforce RS256 signature, issuer, and expiry checks in one place.
 Files created/modified: packages/backend/app/api/dependencies/__init__.py, packages/backend/app/api/dependencies/auth.py, packages/backend/app/api/v1/auth.py, packages/backend/app/services/auth.py, packages/backend/tests/test_auth_dependencies_unit.py, prd.json, progress.txt
 ---
-[VAULT-001] ‚Äî Create vault item endpoint
+[VAULT-001] ó Create vault item endpoint
 Date: 2026-02-20
 What was done:
 - Added `POST /api/v1/vault/items` protected by `get_current_user` JWT dependency.
@@ -234,22 +234,8 @@ Key decisions / gotchas:
 - Integration test schema needs the `folders` table present because `vault_items.folder_id` has a foreign key reference.
 Files created/modified: packages/backend/app/schemas/vault.py, packages/backend/app/services/vault.py, packages/backend/app/api/v1/vault.py, packages/backend/app/main.py, packages/backend/tests/test_vault_create_unit.py, packages/backend/tests/test_vault_create_integration.py, prd.json, progress.txt
 ---
----
-[AUDIT-002] ‚Äî Security health report endpoint
-Date: 2026-02-23
-What was done:
-- Added `GET /api/v1/audit/reports/security` under the audit router, protected with the existing admin/owner auth dependency.
-- Implemented server-side security health metrics aggregation from real DB data: failed logins (30d), active-user MFA adoption %, suspended accounts, and over-shared items.
-- Added a deterministic score-calculation helper and unit tests for scoring/clamping behavior.
-- Added integration tests with seeded data validating metric correctness/score output and non-admin `403` enforcement.
-Key decisions / gotchas:
-- Added `FAILED_LOGIN` to the Python `AuditLogAction` enum so the report can count failed-login audit events when present; the endpoint is read-only and does not emit this action itself.
-- Defined `over_shared_items` as active vault items linked to collections with more than 5 collection-member entries (direct user/group grants), using DB-side aggregation.
-- Calculated `mfa_adoption_pct` over `ACTIVE` org users only (invited/suspended users are excluded from the denominator).
-Files created/modified: packages/backend/app/api/v1/audit.py, packages/backend/app/models/audit_log.py, packages/backend/app/schemas/audit.py, packages/backend/app/services/audit.py, packages/backend/tests/test_audit_security_report_unit.py, packages/backend/tests/test_audit_security_report_integration.py, prd.json, progress.txt
----
 
-[VAULT-002] ‚Äî Get, update, and soft-delete vault item endpoints
+[VAULT-002] ó Get, update, and soft-delete vault item endpoints
 Date: 2026-02-20
 What was done:
 - Added protected `GET /api/v1/vault/items/{id}`, `PUT /api/v1/vault/items/{id}`, and `DELETE /api/v1/vault/items/{id}` endpoints using `get_current_user`.
@@ -265,7 +251,7 @@ Key decisions / gotchas:
 Files created/modified: packages/backend/app/services/vault.py, packages/backend/app/api/v1/vault.py, packages/backend/app/schemas/vault.py, packages/backend/tests/test_vault_item_lifecycle_integration.py, prd.json, progress.txt
 ---
 ---
-[VAULT-003] ‚Äî Full vault sync and delta sync endpoints
+[VAULT-003] ó Full vault sync and delta sync endpoints
 Date: 2026-02-20
 What was done:
 - Added `GET /api/v1/vault` with owner-scoped pagination (`limit`, `offset`) returning only non-deleted vault items.
@@ -279,7 +265,7 @@ Key decisions / gotchas:
 Files created/modified: packages/backend/app/api/v1/vault.py, packages/backend/app/services/vault.py, packages/backend/app/schemas/vault.py, packages/backend/tests/test_vault_sync_integration.py, prd.json, progress.txt
 ---
 ---
-[VAULT-004] ‚Äî Vault item revision history and restore endpoints
+[VAULT-004] ó Vault item revision history and restore endpoints
 Date: 2026-02-20
 What was done:
 - Added `GET /api/v1/vault/items/{id}/history` to return revision history entries with `revision_number` and `created_at`.
@@ -292,7 +278,7 @@ Key decisions / gotchas:
 Files created/modified: packages/backend/app/api/v1/vault.py, packages/backend/app/services/vault.py, packages/backend/app/schemas/vault.py, packages/backend/app/models/audit_log.py, packages/backend/alembic/versions/0008_add_restore_item_audit_action.py, packages/backend/tests/test_vault_restore_history_integration.py, prd.json, progress.txt
 ---
 ---
-[VAULT-005] ‚Äî Folder management endpoints
+[VAULT-005] ó Folder management endpoints
 Date: 2026-02-20
 What was done:
 - Added folder CRUD API endpoints: `POST /api/v1/vault/folders`, `GET /api/v1/vault/folders`, `PATCH /api/v1/vault/folders/{id}`, and `DELETE /api/v1/vault/folders/{id}`.
@@ -308,7 +294,7 @@ Key decisions / gotchas:
 Files created/modified: packages/backend/app/schemas/vault.py, packages/backend/app/services/vault.py, packages/backend/app/api/v1/vault.py, packages/backend/tests/test_vault_folders_unit.py, packages/backend/tests/test_vault_folders_integration.py, prd.json, progress.txt
 ---
 ---
-[ORG-001] ‚Äî Organization creation and retrieval endpoints
+[ORG-001] ó Organization creation and retrieval endpoints
 Date: 2026-02-20
 What was done:
 - Added protected org endpoints: POST /api/v1/org and GET /api/v1/org.
@@ -322,7 +308,7 @@ Key decisions / gotchas:
 Files created/modified: packages/backend/app/api/v1/org.py, packages/backend/app/schemas/org.py, packages/backend/app/services/org.py, packages/backend/app/main.py, packages/backend/tests/test_org_endpoints_integration.py, prd.json, progress.txt
 ---
 ---
-[ORG-002] ‚Äî User invitation and onboarding flow
+[ORG-002] ó User invitation and onboarding flow
 Date: 2026-02-20
 What was done:
 - Added `POST /api/v1/org/users/invite` with admin-role protection, invited-user creation (`status=invited`), signed invitation JWT issuance (1-week expiry), token-hash persistence, and invitation audit logging.
@@ -334,12 +320,12 @@ What was done:
 - Verified with `python -m pytest -q packages/backend/tests`, `python -m compileall packages/backend/app`, and `python -m alembic upgrade head --sql`.
 Key decisions / gotchas:
 - Reused RS256 JWT infrastructure for invitation tokens with a dedicated `purpose=org_invite` claim to keep token validation consistent with existing auth flows.
-- Kept invite delivery as a stubbed email service with DI override so integration tests can assert ‚Äúemail sent‚Äù without external SMTP dependencies.
+- Kept invite delivery as a stubbed email service with DI override so integration tests can assert ìemail sentî without external SMTP dependencies.
 - Treated invalid, expired, and previously used invitation tokens uniformly as `410 Gone` to satisfy acceptance criteria and reduce token-state leakage.
 Files created/modified: packages/backend/app/api/v1/org.py, packages/backend/app/api/v1/auth.py, packages/backend/app/core/settings.py, packages/backend/app/models/audit_log.py, packages/backend/app/models/user.py, packages/backend/app/schemas/auth.py, packages/backend/app/schemas/org.py, packages/backend/app/security/tokens.py, packages/backend/app/services/auth.py, packages/backend/app/services/org.py, packages/backend/app/services/email.py, packages/backend/alembic/versions/0009_org_invitations_and_audit_actions.py, packages/backend/tests/test_org_invitation_integration.py, packages/backend/tests/test_auth_dependencies_unit.py, packages/backend/tests/test_auth_login_integration.py, packages/backend/tests/test_auth_mfa_integration.py, packages/backend/tests/test_auth_register_integration.py, packages/backend/tests/test_auth_session_management_integration.py, packages/backend/tests/test_org_endpoints_integration.py, packages/backend/tests/test_vault_create_integration.py, packages/backend/tests/test_vault_folders_integration.py, packages/backend/tests/test_vault_item_lifecycle_integration.py, packages/backend/tests/test_vault_restore_history_integration.py, packages/backend/tests/test_vault_sync_integration.py, prd.json, progress.txt
 ---
 ---
-[ORG-003] ‚Äî User management endpoints (list, role change, offboard)
+[ORG-003] ó User management endpoints (list, role change, offboard)
 Date: 2026-02-23
 What was done:
 - Added `GET /api/v1/org/users` with org-scoped pagination (`limit`, `offset`) and optional `role`/`status` filters, protected by admin/owner auth.
@@ -354,7 +340,7 @@ Key decisions / gotchas:
 Files created/modified: packages/backend/app/api/v1/org.py, packages/backend/app/schemas/org.py, packages/backend/app/services/org.py, packages/backend/app/models/audit_log.py, packages/backend/alembic/versions/0010_org_user_management_audit_actions.py, packages/backend/tests/test_org_user_management_integration.py, prd.json, progress.txt
 ---
 ---
-[ORG-004] ‚Äî Groups management endpoints
+[ORG-004] ó Groups management endpoints
 Date: 2026-02-23
 What was done:
 - Added Alembic migration `0011_org_groups_and_audit_actions` to create `groups` and `group_members` tables and extend the audit log action enum.
@@ -367,7 +353,7 @@ Key decisions / gotchas:
 Files created/modified: packages/backend/alembic/versions/0011_org_groups_and_audit_actions.py, packages/backend/app/models/group.py, packages/backend/app/models/audit_log.py, packages/backend/app/db/model_registry.py, packages/backend/app/schemas/org.py, packages/backend/app/services/org.py, packages/backend/app/api/v1/org.py, packages/backend/tests/test_org_groups_unit.py, packages/backend/tests/test_org_groups_integration.py, prd.json, progress.txt
 ---
 ---
-[ORG-005] ‚Äî Shared Collections endpoints
+[ORG-005] ó Shared Collections endpoints
 Date: 2026-02-23
 What was done:
 - Added shared collection endpoints for create, member grant/revoke, item add, and collection item listing (`GET /api/v1/org/collections/{id}/items`) with RFC 7807 error responses.
@@ -381,7 +367,7 @@ Key decisions / gotchas:
 Files created/modified: packages/backend/app/api/v1/org.py, packages/backend/app/services/org.py, packages/backend/app/schemas/org.py, packages/backend/app/models/folder.py, packages/backend/app/db/model_registry.py, packages/backend/alembic/versions/0012_create_collection_items_table.py, packages/backend/tests/test_org_collections_integration.py, prd.json, progress.txt
 ---
 ---
-[AUDIT-001] ‚Äî Audit log query and export endpoints
+[AUDIT-001] ó Audit log query and export endpoints
 Date: 2026-02-23
 What was done:
 - Added admin/owner-protected audit endpoints: `GET /api/v1/audit/logs` and `GET /api/v1/audit/logs/export`.
@@ -394,4 +380,32 @@ Key decisions / gotchas:
 - Returned NDJSON with `application/x-ndjson` for `format=json` to satisfy the streaming JSON-lines acceptance criterion.
 - SQLite test fixtures store audit enum names (e.g. `VIEW_ITEM`) so SQLAlchemy enum parsing matches the existing backend enum mapping behavior.
 Files created/modified: packages/backend/app/api/v1/audit.py, packages/backend/app/services/audit.py, packages/backend/app/schemas/audit.py, packages/backend/app/main.py, packages/backend/tests/test_audit_endpoints_integration.py, prd.json, progress.txt
+---
+
+---
+[AUDIT-002] ó Security health report endpoint
+Date: 2026-02-23
+What was done:
+- Added `GET /api/v1/audit/reports/security` under the audit router, protected with the existing admin/owner auth dependency.
+- Implemented server-side security health metrics aggregation from real DB data: failed logins (30d), active-user MFA adoption %, suspended accounts, and over-shared items.
+- Added a deterministic score-calculation helper and unit tests for scoring/clamping behavior.
+- Added integration tests with seeded data validating metric correctness/score output and non-admin `403` enforcement.
+Key decisions / gotchas:
+- Added `FAILED_LOGIN` to the Python `AuditLogAction` enum so the report can count failed-login audit events when present; the endpoint is read-only and does not emit this action itself.
+- Defined `over_shared_items` as active vault items linked to collections with more than 5 collection-member entries (direct user/group grants), using DB-side aggregation.
+- Calculated `mfa_adoption_pct` over `ACTIVE` org users only (invited/suspended users are excluded from the denominator).
+Files created/modified: packages/backend/app/api/v1/audit.py, packages/backend/app/models/audit_log.py, packages/backend/app/schemas/audit.py, packages/backend/app/services/audit.py, packages/backend/tests/test_audit_security_report_unit.py, packages/backend/tests/test_audit_security_report_integration.py, prd.json, progress.txt
+---
+---
+[FE-001] ó Design system tokens and global CSS
+Date: 2026-02-23
+What was done:
+- Replaced the frontend stub page with a dedicated design-system token showcase in `packages/web/src/App.tsx`.
+- Added global CSS reset/base styles and dark-first theme tokens in `packages/web/src/styles.css`, including required color variables (`--color-primary`, `--color-accent`, `--color-success`, `--color-danger`).
+- Added Google Fonts loading for Inter and JetBrains Mono in `packages/web/index.html` and applied JetBrains Mono to secret/code samples.
+- Verified `npm run typecheck` and `npm run build` succeed in `packages/web`.
+Key decisions / gotchas:
+- Implemented light-mode support via `@media (prefers-color-scheme: light)` while keeping the default `:root` theme dark to satisfy the storyís dark-first requirement.
+- Used a static token-preview page only (no auth/vault interactions) to avoid bleeding into later frontend stories (`FE-002+`).
+Files created/modified: packages/web/src/App.tsx, packages/web/src/styles.css, packages/web/index.html, prd.json, progress.txt
 ---

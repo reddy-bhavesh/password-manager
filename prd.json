@@ -395,7 +395,7 @@
                                                    "Base styles applied (reset, box-sizing, font smoothing)",
                                                    "Dev server renders design tokens page without font/color issues"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "FE-002",
