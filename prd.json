@@ -442,7 +442,7 @@
                                                    "JetBrains Mono font applied to secret values",
                                                    "Keyboard accessible (Enter/Space on reveal button works)"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "FE-005",

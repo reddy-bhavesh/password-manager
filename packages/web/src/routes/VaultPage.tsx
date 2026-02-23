@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { motion, useReducedMotion } from "framer-motion";
-import { type ReactNode, useEffect, useMemo, useState } from "react";
+import { type ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { ApiError } from "../api/http";
 import { useAuthStore } from "../features/auth/store";
 import { fetchVaultFolders, fetchVaultItems, type VaultFolderTreeNode, type VaultItemRecord } from "../features/vault/api";
@@ -28,6 +28,8 @@ type PanelProps = {
   tone?: PanelTone;
   children: ReactNode;
 };
+
+type SecretFieldKey = "encrypted_data" | "encrypted_key";
 
 function mergeClassNames(...parts: Array<string | undefined | false>): string {
   return parts.filter(Boolean).join(" ");
@@ -62,6 +64,61 @@ function itemTypeLabel(type: string): string {
     .split("_")
     .map((segment) => segment.slice(0, 1).toUpperCase() + segment.slice(1))
     .join(" ");
+}
+
+function EyeOpenIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M2.2 12c2.2-4 5.7-6.1 9.8-6.1s7.6 2.1 9.8 6.1c-2.2 4-5.7 6.1-9.8 6.1S4.4 16 2.2 12Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="12" r="3.2" fill="none" stroke="currentColor" strokeWidth="1.7" />
+    </svg>
+  );
+}
+
+function EyeClosedIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <path
+        d="M3 3l18 18"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path
+        d="M10.6 6.2c.5-.1 1-.2 1.4-.2 4.1 0 7.6 2.1 9.8 6.1-.8 1.4-1.7 2.6-2.9 3.5M7.8 7.8C5.5 8.8 3.6 10.2 2.2 12c1.9 3.5 4.8 5.6 8.2 6.1m1.6 0c1.1-.1 2.2-.4 3.2-.8"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+      <rect x="9" y="9" width="10" height="10" rx="2" fill="none" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d="M6 15H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2v1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
 }
 
 function Panel({ className, tone = "default", children }: PanelProps) {
@@ -213,17 +270,147 @@ function VaultItemListContent({
 }
 
 function VaultDetailContent({ item }: { item: VaultItemRecord | null }) {
+  const [revealedFields, setRevealedFields] = useState<Record<SecretFieldKey, boolean>>({
+    encrypted_data: false,
+    encrypted_key: false
+  });
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
+  const toastTimerRef = useRef<number | null>(null);
+  const clipboardClearTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    setRevealedFields({
+      encrypted_data: false,
+      encrypted_key: false
+    });
+  }, [item?.id]);
+
+  useEffect(() => {
+    return () => {
+      if (toastTimerRef.current !== null) {
+        window.clearTimeout(toastTimerRef.current);
+      }
+      if (clipboardClearTimerRef.current !== null) {
+        window.clearTimeout(clipboardClearTimerRef.current);
+      }
+    };
+  }, []);
+
   if (!item) {
     return <p className="vault-panel-state">Select an item to view details.</p>;
   }
 
+  const maskedValue = "\u2022".repeat(8);
+
+  function showToast(message: string) {
+    setToastMessage(message);
+
+    if (toastTimerRef.current !== null) {
+      window.clearTimeout(toastTimerRef.current);
+    }
+
+    toastTimerRef.current = window.setTimeout(() => {
+      setToastMessage(null);
+      toastTimerRef.current = null;
+    }, 2600);
+  }
+
+  function toggleSecretField(field: SecretFieldKey) {
+    setRevealedFields((current) => ({
+      ...current,
+      [field]: !current[field]
+    }));
+  }
+
+  async function copySecretValue(label: string, value: string) {
+    if (!navigator?.clipboard?.writeText) {
+      showToast("Clipboard is not available in this browser.");
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(value);
+      showToast(`${label} copied. Clipboard clears in 30s.`);
+
+      if (clipboardClearTimerRef.current !== null) {
+        window.clearTimeout(clipboardClearTimerRef.current);
+      }
+
+      clipboardClearTimerRef.current = window.setTimeout(async () => {
+        try {
+          await navigator.clipboard.writeText("");
+        } catch {
+          // Ignore clipboard clear failures (permissions or browser policy).
+        } finally {
+          clipboardClearTimerRef.current = null;
+        }
+      }, 30_000);
+    } catch {
+      showToast(`Failed to copy ${label.toLowerCase()}.`);
+    }
+  }
+
+  function SecretValueRow({
+    label,
+    field,
+    value
+  }: {
+    label: string;
+    field: SecretFieldKey;
+    value: string;
+  }) {
+    const revealed = revealedFields[field];
+
+    return (
+      <div className="vault-secret-row">
+        <dt>{label}</dt>
+        <dd>
+          <div className="vault-secret-card">
+            <div className="vault-secret-actions">
+              <button
+                type="button"
+                className="vault-icon-button"
+                aria-label={revealed ? `Hide ${label}` : `Reveal ${label}`}
+                aria-pressed={revealed}
+                onClick={() => toggleSecretField(field)}
+              >
+                <span className="vault-icon-button__icon">{revealed ? <EyeOpenIcon /> : <EyeClosedIcon />}</span>
+                <span>{revealed ? "Hide" : "Reveal"}</span>
+              </button>
+              <button
+                type="button"
+                className="vault-icon-button"
+                aria-label={`Copy ${label}`}
+                onClick={() => void copySecretValue(label, value)}
+              >
+                <span className="vault-icon-button__icon">
+                  <CopyIcon />
+                </span>
+                <span>Copy</span>
+              </button>
+            </div>
+            <code className="vault-secret-value" data-masked={!revealed}>
+              {revealed ? value : maskedValue}
+            </code>
+          </div>
+        </dd>
+      </div>
+    );
+  }
+
   return (
     <div className="vault-detail">
+      {toastMessage ? (
+        <p className="vault-toast" role="status" aria-live="polite">
+          {toastMessage}
+        </p>
+      ) : null}
+
       <div className="vault-detail-header">
         <p className="auth-kicker">Item Detail</p>
         <h3>{item.name}</h3>
         <p className="vault-detail-subtitle">
-          {itemTypeLabel(item.type)} - Updated {formatDate(item.updated_at)}
+          {itemTypeLabel(item.type)} | Updated {formatDate(item.updated_at)}
         </p>
       </div>
 
@@ -240,14 +427,8 @@ function VaultDetailContent({ item }: { item: VaultItemRecord | null }) {
           <dt>Created</dt>
           <dd>{formatDate(item.created_at)}</dd>
         </div>
-        <div>
-          <dt>Encrypted Data</dt>
-          <dd className="vault-code-block">{item.encrypted_data}</dd>
-        </div>
-        <div>
-          <dt>Encrypted Key</dt>
-          <dd className="vault-code-block">{item.encrypted_key}</dd>
-        </div>
+        <SecretValueRow label="Encrypted Data" field="encrypted_data" value={item.encrypted_data} />
+        <SecretValueRow label="Encrypted Key" field="encrypted_key" value={item.encrypted_key} />
       </dl>
     </div>
   );

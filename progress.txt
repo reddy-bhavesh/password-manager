@@ -438,3 +438,17 @@ Key decisions / gotchas:
 - Implemented the mobile sidebar as a collapsible panel in the same DOM flow (instead of an overlay) to keep the layout simple and snapshotable for this story.
 Files created/modified: packages/web/src/api/http.ts, packages/web/src/features/vault/api.ts, packages/web/src/routes/VaultPage.tsx, packages/web/src/routes/VaultPage.test.tsx, packages/web/src/routes/__snapshots__/VaultPage.test.tsx.snap, packages/web/src/styles.css, prd.json, progress.txt
 ---
+
+---
+[FE-004] — Vault item detail view with masked fields
+Date: 2026-02-23
+What was done:
+- Updated the `/vault` right-side detail panel to mask encrypted fields by default and added per-field reveal toggles.
+- Added inline copy buttons with clipboard write, 30-second auto-clear scheduling, and an in-panel toast/status confirmation.
+- Added state reset on item change so revealed secrets are hidden again when switching selections.
+- Styled secret fields/actions/toast to match the existing FE-001/FE-003 dashboard visual system and JetBrains Mono secret typography.
+Key decisions / gotchas:
+- Applied FE-004 behavior to encrypted fields (`encrypted_data`, `encrypted_key`) per PDR Item Detail guidance, since client-side decryption is introduced later in FE-005.
+- Used native `<button>` controls for reveal/copy so Enter/Space keyboard activation works without custom key handlers.
+Files created/modified: packages/web/src/routes/VaultPage.tsx, packages/web/src/styles.css, prd.json, progress.txt
+---
