@@ -78,3 +78,21 @@ class CollectionMember(Base):
         Enum(CollectionPermission, name="collection_permission", native_enum=True),
         nullable=False,
     )
+
+
+class CollectionItem(Base):
+    __tablename__ = "collection_items"
+
+    collection_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("collections.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    item_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("vault_items.id", ondelete="CASCADE"),
+        primary_key=True,
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )

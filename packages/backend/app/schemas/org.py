@@ -7,6 +7,9 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
+from app.models.folder import CollectionPermission
+from app.schemas.vault import VaultItemResponse
+
 
 class CreateOrganizationRequest(BaseModel):
     name: str = Field(min_length=1, max_length=255)
@@ -132,3 +135,65 @@ class OrganizationGroupMemberResponse(BaseModel):
             group_id=membership.group_id,
             user_id=membership.user_id,
         )
+
+
+class CreateCollectionRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+
+
+class CollectionResponse(BaseModel):
+    id: uuid.UUID
+    org_id: uuid.UUID
+    name: str
+    created_by: uuid.UUID
+    created_at: datetime.datetime
+
+    @classmethod
+    def from_collection(cls, collection: Any) -> "CollectionResponse":
+        return cls(
+            id=collection.id,
+            org_id=collection.org_id,
+            name=collection.name,
+            created_by=collection.created_by,
+            created_at=collection.created_at,
+        )
+
+
+class AddCollectionMemberRequest(BaseModel):
+    user_or_group_id: uuid.UUID
+    permission: CollectionPermission
+
+
+class CollectionMemberResponse(BaseModel):
+    collection_id: uuid.UUID
+    user_or_group_id: uuid.UUID
+    permission: str
+
+    @classmethod
+    def from_collection_member(cls, member: Any) -> "CollectionMemberResponse":
+        permission = member.permission.value if hasattr(member.permission, "value") else str(member.permission).lower()
+        return cls(
+            collection_id=member.collection_id,
+            user_or_group_id=member.user_or_group_id,
+            permission=permission,
+        )
+
+
+class AddCollectionItemRequest(BaseModel):
+    item_id: uuid.UUID
+
+
+class CollectionItemLinkResponse(BaseModel):
+    collection_id: uuid.UUID
+    item_id: uuid.UUID
+
+    @classmethod
+    def from_collection_item(cls, collection_item: Any) -> "CollectionItemLinkResponse":
+        return cls(
+            collection_id=collection_item.collection_id,
+            item_id=collection_item.item_id,
+        )
+
+
+class CollectionItemsListResponse(BaseModel):
+    items: list[VaultItemResponse]

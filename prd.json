@@ -353,7 +353,7 @@
                                                    "Users can only read collection items they have at least view permission for",
                                                    "Integration tests covering permission enforcement"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "AUDIT-001",

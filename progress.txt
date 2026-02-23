@@ -352,3 +352,17 @@ Key decisions / gotchas:
 - Used UUID-normalized filters for group/user lookups and membership deletes to keep SQLite integration tests and MySQL behavior aligned.
 Files created/modified: packages/backend/alembic/versions/0011_org_groups_and_audit_actions.py, packages/backend/app/models/group.py, packages/backend/app/models/audit_log.py, packages/backend/app/db/model_registry.py, packages/backend/app/schemas/org.py, packages/backend/app/services/org.py, packages/backend/app/api/v1/org.py, packages/backend/tests/test_org_groups_unit.py, packages/backend/tests/test_org_groups_integration.py, prd.json, progress.txt
 ---
+---
+[ORG-005] — Shared Collections endpoints
+Date: 2026-02-23
+What was done:
+- Added shared collection endpoints for create, member grant/revoke, item add, and collection item listing (`GET /api/v1/org/collections/{id}/items`) with RFC 7807 error responses.
+- Implemented org-scoped collection service logic with direct-user and group-based permission resolution for collection item reads.
+- Added `collection_items` join model + Alembic migration `0012_create_collection_items_table` so vault items can be linked to shared collections.
+- Added integration coverage for direct and group-based access, denied reads without permission, and revoke behavior.
+Key decisions / gotchas:
+- Added automatic `manage` membership for the collection creator so newly created collections are immediately usable without a second grant call.
+- Used UUID-normalized column-to-column joins in collection/group permission queries to avoid SQLite UUID formatting mismatches in integration tests while remaining MySQL-safe.
+- Kept collection audit logging out of this story to avoid expanding the audit enum/migration scope beyond ORG-005 acceptance criteria.
+Files created/modified: packages/backend/app/api/v1/org.py, packages/backend/app/services/org.py, packages/backend/app/schemas/org.py, packages/backend/app/models/folder.py, packages/backend/app/db/model_registry.py, packages/backend/alembic/versions/0012_create_collection_items_table.py, packages/backend/tests/test_org_collections_integration.py, prd.json, progress.txt
+---
