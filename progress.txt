@@ -366,3 +366,18 @@ Key decisions / gotchas:
 - Kept collection audit logging out of this story to avoid expanding the audit enum/migration scope beyond ORG-005 acceptance criteria.
 Files created/modified: packages/backend/app/api/v1/org.py, packages/backend/app/services/org.py, packages/backend/app/schemas/org.py, packages/backend/app/models/folder.py, packages/backend/app/db/model_registry.py, packages/backend/alembic/versions/0012_create_collection_items_table.py, packages/backend/tests/test_org_collections_integration.py, prd.json, progress.txt
 ---
+---
+[AUDIT-001] — Audit log query and export endpoints
+Date: 2026-02-23
+What was done:
+- Added admin/owner-protected audit endpoints: `GET /api/v1/audit/logs` and `GET /api/v1/audit/logs/export`.
+- Implemented paginated/filterable audit querying by `actor_id`, `action`, `start_date`, and `end_date` with org scoping.
+- Implemented CSV export and newline-delimited JSON export (`format=json`) with downloadable response headers.
+- Added integration tests covering pagination, filter combinations, export formats, invalid date range handling, and non-admin `403`.
+- Wired the audit router into `app.main` and marked `AUDIT-001` as passed in `prd.json`.
+Key decisions / gotchas:
+- Reused UUID-normalized filtering (`lower(replace(...))`) to keep SQLite integration tests and MySQL UUID behavior aligned.
+- Returned NDJSON with `application/x-ndjson` for `format=json` to satisfy the streaming JSON-lines acceptance criterion.
+- SQLite test fixtures store audit enum names (e.g. `VIEW_ITEM`) so SQLAlchemy enum parsing matches the existing backend enum mapping behavior.
+Files created/modified: packages/backend/app/api/v1/audit.py, packages/backend/app/services/audit.py, packages/backend/app/schemas/audit.py, packages/backend/app/main.py, packages/backend/tests/test_audit_endpoints_integration.py, prd.json, progress.txt
+---

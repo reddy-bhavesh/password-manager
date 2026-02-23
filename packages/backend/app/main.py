@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 import uvicorn
 
+from app.api.v1.audit import router as audit_router
 from app.api.v1.auth import router as auth_router
 from app.api.v1.org import router as org_router
 from app.api.v1.vault import router as vault_router
@@ -11,6 +12,7 @@ app = FastAPI(title="VaultGuard API")
 app.include_router(auth_router)
 app.include_router(org_router)
 app.include_router(vault_router)
+app.include_router(audit_router)
 
 
 @app.get("/health")

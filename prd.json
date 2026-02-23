@@ -367,7 +367,7 @@
                                                    "Non-admin users receive 403",
                                                    "Integration tests with seeded audit data covering all filter combinations"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "AUDIT-002",
