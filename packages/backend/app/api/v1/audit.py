@@ -16,8 +16,13 @@ from app.core.problems import problem_response
 from app.db.session import get_db_session
 from app.models.audit_log import AuditLogAction
 from app.models.user import User
-from app.schemas.audit import AuditLogEntryResponse, AuditLogsPageResponse
-from app.services.audit import AuditLogFilters, list_audit_logs, list_audit_logs_for_export
+from app.schemas.audit import AuditLogEntryResponse, AuditLogsPageResponse, SecurityHealthReportResponse
+from app.services.audit import (
+    AuditLogFilters,
+    get_security_health_report,
+    list_audit_logs,
+    list_audit_logs_for_export,
+)
 
 
 router = APIRouter(prefix="/api/v1/audit", tags=["audit"])
@@ -170,3 +175,20 @@ async def export_audit_logs(
         headers={"Content-Disposition": 'attachment; filename="audit-logs.ndjson"'},
     )
 
+
+@router.get("/reports/security", response_model=SecurityHealthReportResponse)
+async def get_security_report(
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> SecurityHealthReportResponse:
+    report = await get_security_health_report(
+        db,
+        current_user=current_user,
+    )
+    return SecurityHealthReportResponse(
+        overall_score=report.overall_score,
+        failed_logins_30d=report.failed_logins_30d,
+        mfa_adoption_pct=report.mfa_adoption_pct,
+        suspended_accounts=report.suspended_accounts,
+        over_shared_items=report.over_shared_items,
+    )

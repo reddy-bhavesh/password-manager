@@ -381,7 +381,7 @@
                                                    "Unit tests for score calculation logic",
                                                    "Integration test with seeded data validates correctness"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "FE-001",

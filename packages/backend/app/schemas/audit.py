@@ -62,3 +62,10 @@ class AuditLogsPageResponse(BaseModel):
     page: int
     per_page: int
 
+
+class SecurityHealthReportResponse(BaseModel):
+    overall_score: int
+    failed_logins_30d: int
+    mfa_adoption_pct: int
+    suspended_accounts: int
+    over_shared_items: int

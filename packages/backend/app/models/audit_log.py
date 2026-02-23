@@ -12,6 +12,7 @@ from app.db.base import Base
 
 class AuditLogAction(str, enum.Enum):
     LOGIN = "login"
+    FAILED_LOGIN = "failed_login"
     LOGOUT = "logout"
     REFRESH_TOKEN = "refresh_token"
     CREATE_ITEM = "create_item"

@@ -235,6 +235,20 @@ Key decisions / gotchas:
 Files created/modified: packages/backend/app/schemas/vault.py, packages/backend/app/services/vault.py, packages/backend/app/api/v1/vault.py, packages/backend/app/main.py, packages/backend/tests/test_vault_create_unit.py, packages/backend/tests/test_vault_create_integration.py, prd.json, progress.txt
 ---
 ---
+[AUDIT-002] — Security health report endpoint
+Date: 2026-02-23
+What was done:
+- Added `GET /api/v1/audit/reports/security` under the audit router, protected with the existing admin/owner auth dependency.
+- Implemented server-side security health metrics aggregation from real DB data: failed logins (30d), active-user MFA adoption %, suspended accounts, and over-shared items.
+- Added a deterministic score-calculation helper and unit tests for scoring/clamping behavior.
+- Added integration tests with seeded data validating metric correctness/score output and non-admin `403` enforcement.
+Key decisions / gotchas:
+- Added `FAILED_LOGIN` to the Python `AuditLogAction` enum so the report can count failed-login audit events when present; the endpoint is read-only and does not emit this action itself.
+- Defined `over_shared_items` as active vault items linked to collections with more than 5 collection-member entries (direct user/group grants), using DB-side aggregation.
+- Calculated `mfa_adoption_pct` over `ACTIVE` org users only (invited/suspended users are excluded from the denominator).
+Files created/modified: packages/backend/app/api/v1/audit.py, packages/backend/app/models/audit_log.py, packages/backend/app/schemas/audit.py, packages/backend/app/services/audit.py, packages/backend/tests/test_audit_security_report_unit.py, packages/backend/tests/test_audit_security_report_integration.py, prd.json, progress.txt
+---
+
 [VAULT-002] — Get, update, and soft-delete vault item endpoints
 Date: 2026-02-20
 What was done:
