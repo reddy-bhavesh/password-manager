@@ -339,3 +339,16 @@ Key decisions / gotchas:
 - Prevented owner role changes in addition to owner deletion to avoid accidentally removing the org owner via the role-change endpoint.
 Files created/modified: packages/backend/app/api/v1/org.py, packages/backend/app/schemas/org.py, packages/backend/app/services/org.py, packages/backend/app/models/audit_log.py, packages/backend/alembic/versions/0010_org_user_management_audit_actions.py, packages/backend/tests/test_org_user_management_integration.py, prd.json, progress.txt
 ---
+---
+[ORG-004] — Groups management endpoints
+Date: 2026-02-23
+What was done:
+- Added Alembic migration `0011_org_groups_and_audit_actions` to create `groups` and `group_members` tables and extend the audit log action enum.
+- Implemented admin-guarded org group endpoints for create/list/add-member/remove-member with org-scoped validation and RFC 7807 error responses.
+- Added SQLAlchemy models and org service methods for group and membership operations with audit logging for create/add/remove membership changes.
+- Added unit and integration tests covering service edge cases, endpoint CRUD flow, audit log writes, and admin-role enforcement.
+Key decisions / gotchas:
+- Stored membership-change audit `target_id` as the group ID so all group events are traceable under the affected group entity.
+- Used UUID-normalized filters for group/user lookups and membership deletes to keep SQLite integration tests and MySQL behavior aligned.
+Files created/modified: packages/backend/alembic/versions/0011_org_groups_and_audit_actions.py, packages/backend/app/models/group.py, packages/backend/app/models/audit_log.py, packages/backend/app/db/model_registry.py, packages/backend/app/schemas/org.py, packages/backend/app/services/org.py, packages/backend/app/api/v1/org.py, packages/backend/tests/test_org_groups_unit.py, packages/backend/tests/test_org_groups_integration.py, prd.json, progress.txt
+---

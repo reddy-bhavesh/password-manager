@@ -90,3 +90,45 @@ class OrganizationUsersPageResponse(BaseModel):
 
 class UpdateOrganizationUserRoleRequest(BaseModel):
     role: Literal["admin", "manager", "member", "viewer"]
+
+
+class CreateOrganizationGroupRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+
+
+class OrganizationGroupResponse(BaseModel):
+    id: uuid.UUID
+    org_id: uuid.UUID
+    name: str
+    created_at: datetime.datetime
+    member_count: int = 0
+
+    @classmethod
+    def from_group(cls, group: Any, *, member_count: int = 0) -> "OrganizationGroupResponse":
+        return cls(
+            id=group.id,
+            org_id=group.org_id,
+            name=group.name,
+            created_at=group.created_at,
+            member_count=member_count,
+        )
+
+
+class OrganizationGroupsListResponse(BaseModel):
+    items: list[OrganizationGroupResponse]
+
+
+class AddOrganizationGroupMemberRequest(BaseModel):
+    user_id: uuid.UUID
+
+
+class OrganizationGroupMemberResponse(BaseModel):
+    group_id: uuid.UUID
+    user_id: uuid.UUID
+
+    @classmethod
+    def from_membership(cls, membership: Any) -> "OrganizationGroupMemberResponse":
+        return cls(
+            group_id=membership.group_id,
+            user_id=membership.user_id,
+        )

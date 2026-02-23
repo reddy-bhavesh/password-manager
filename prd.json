@@ -338,7 +338,7 @@
                                                    "Audit log entries for group creation and membership changes",
                                                    "Unit + integration tests"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "ORG-005",

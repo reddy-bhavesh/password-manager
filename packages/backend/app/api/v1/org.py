@@ -10,9 +10,14 @@ from app.core.problems import problem_response
 from app.db.session import get_db_session
 from app.models.user import User
 from app.schemas.org import (
+    AddOrganizationGroupMemberRequest,
+    CreateOrganizationGroupRequest,
     CreateOrganizationRequest,
     InviteUserRequest,
     InviteUserResponse,
+    OrganizationGroupMemberResponse,
+    OrganizationGroupResponse,
+    OrganizationGroupsListResponse,
     OrganizationResponse,
     OrganizationUserResponse,
     OrganizationUsersPageResponse,
@@ -22,14 +27,21 @@ from app.services.email import InvitationEmailSender, StubInvitationEmailSender
 from app.services.org import (
     InviteUserConflictError,
     OrganizationAccessError,
+    OrganizationGroupConflictError,
+    OrganizationGroupMemberNotFoundError,
+    OrganizationGroupNotFoundError,
     OrganizationUserConflictError,
     OrganizationUserNotFoundError,
+    add_organization_group_member,
     change_organization_user_role,
     create_organization,
+    create_organization_group,
     get_current_organization,
     invite_user,
+    list_organization_groups,
     list_organization_users,
     offboard_organization_user,
+    remove_organization_group_member,
 )
 
 
@@ -52,6 +64,121 @@ async def create_org(
         payload=payload,
     )
     return OrganizationResponse.from_organization(organization)
+
+
+@router.post("/groups", response_model=OrganizationGroupResponse, status_code=201)
+async def create_org_group(
+    payload: CreateOrganizationGroupRequest,
+    request: Request,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> OrganizationGroupResponse:
+    client_ip = request.client.host if request.client and request.client.host else "0.0.0.0"
+    user_agent = request.headers.get("user-agent", "")
+    group = await create_organization_group(
+        db,
+        current_user=current_user,
+        payload=payload,
+        client_ip=client_ip,
+        user_agent=user_agent,
+    )
+    return OrganizationGroupResponse.from_group(group)
+
+
+@router.get("/groups", response_model=OrganizationGroupsListResponse)
+async def list_org_groups(
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> OrganizationGroupsListResponse:
+    groups = await list_organization_groups(
+        db,
+        current_user=current_user,
+    )
+    return OrganizationGroupsListResponse(
+        items=[
+            OrganizationGroupResponse.from_group(item.group, member_count=item.member_count)
+            for item in groups
+        ]
+    )
+
+
+@router.post("/groups/{group_id}/members", response_model=OrganizationGroupMemberResponse, status_code=201)
+async def add_org_group_member(
+    group_id: uuid.UUID,
+    payload: AddOrganizationGroupMemberRequest,
+    request: Request,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> OrganizationGroupMemberResponse:
+    client_ip = request.client.host if request.client and request.client.host else "0.0.0.0"
+    user_agent = request.headers.get("user-agent", "")
+    try:
+        membership = await add_organization_group_member(
+            db,
+            current_user=current_user,
+            group_id=group_id,
+            payload=payload,
+            client_ip=client_ip,
+            user_agent=user_agent,
+        )
+    except OrganizationGroupNotFoundError:
+        return problem_response(
+            status=404,
+            title="Not Found",
+            detail="Group not found.",
+            type_="https://vaultguard.dev/errors/group-not-found",
+        )
+    except OrganizationUserNotFoundError:
+        return problem_response(
+            status=404,
+            title="Not Found",
+            detail="User not found.",
+            type_="https://vaultguard.dev/errors/user-not-found",
+        )
+    except OrganizationGroupConflictError:
+        return problem_response(
+            status=409,
+            title="Conflict",
+            detail="User is already a member of this group.",
+            type_="https://vaultguard.dev/errors/group-member-conflict",
+        )
+    return OrganizationGroupMemberResponse.from_membership(membership)
+
+
+@router.delete("/groups/{group_id}/members/{user_id}", status_code=204, response_class=Response, response_model=None)
+async def remove_org_group_member(
+    group_id: uuid.UUID,
+    user_id: uuid.UUID,
+    request: Request,
+    current_user: User = Depends(require_admin),
+    db: AsyncSession = Depends(get_db_session),
+) -> None:
+    client_ip = request.client.host if request.client and request.client.host else "0.0.0.0"
+    user_agent = request.headers.get("user-agent", "")
+    try:
+        await remove_organization_group_member(
+            db,
+            current_user=current_user,
+            group_id=group_id,
+            user_id=user_id,
+            client_ip=client_ip,
+            user_agent=user_agent,
+        )
+    except OrganizationGroupNotFoundError:
+        return problem_response(
+            status=404,
+            title="Not Found",
+            detail="Group not found.",
+            type_="https://vaultguard.dev/errors/group-not-found",
+        )
+    except OrganizationGroupMemberNotFoundError:
+        return problem_response(
+            status=404,
+            title="Not Found",
+            detail="Group member not found.",
+            type_="https://vaultguard.dev/errors/group-member-not-found",
+        )
+    return None
 
 
 @router.post("/users/invite", response_model=InviteUserResponse, status_code=201)

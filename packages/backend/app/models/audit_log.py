@@ -27,6 +27,9 @@ class AuditLogAction(str, enum.Enum):
     ACCEPT_INVITE = "accept_invite"
     CHANGE_USER_ROLE = "change_user_role"
     OFFBOARD_USER = "offboard_user"
+    CREATE_GROUP = "create_group"
+    ADD_GROUP_MEMBER = "add_group_member"
+    REMOVE_GROUP_MEMBER = "remove_group_member"
 
 
 class AuditLog(Base):

@@ -5,16 +5,23 @@ import hashlib
 import secrets
 from dataclasses import dataclass
 
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import settings
 from app.models.audit_log import AuditLog, AuditLogAction
 from app.models.auth_session import Session
+from app.models.group import Group, GroupMember
 from app.models.organization import Organization
 from app.models.user import User, UserRole, UserStatus
-from app.schemas.org import CreateOrganizationRequest, InviteUserRequest, UpdateOrganizationUserRoleRequest
+from app.schemas.org import (
+    AddOrganizationGroupMemberRequest,
+    CreateOrganizationGroupRequest,
+    CreateOrganizationRequest,
+    InviteUserRequest,
+    UpdateOrganizationUserRoleRequest,
+)
 from app.security.password import argon2_hasher
 from app.security.tokens import issue_invitation_token
 from app.services.email import InvitationEmailSender
@@ -36,12 +43,30 @@ class OrganizationUserConflictError(Exception):
     pass
 
 
+class OrganizationGroupNotFoundError(Exception):
+    pass
+
+
+class OrganizationGroupConflictError(Exception):
+    pass
+
+
+class OrganizationGroupMemberNotFoundError(Exception):
+    pass
+
+
 @dataclass(frozen=True)
 class OrganizationUserListPage:
     users: list[User]
     total: int
     limit: int
     offset: int
+
+
+@dataclass(frozen=True)
+class OrganizationGroupListItem:
+    group: Group
+    member_count: int
 
 
 def _normalize_uuid(value: object) -> str:
@@ -288,6 +313,132 @@ async def offboard_organization_user(
     await db.commit()
 
 
+async def create_organization_group(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    payload: CreateOrganizationGroupRequest,
+    client_ip: str,
+    user_agent: str,
+) -> Group:
+    group = Group(
+        org_id=current_user.org_id,
+        name=payload.name.strip(),
+    )
+    db.add(group)
+    await db.flush()
+    await _append_audit_log(
+        db,
+        org_id=current_user.org_id,
+        actor_id=current_user.id,
+        action=AuditLogAction.CREATE_GROUP,
+        target_id=group.id,
+        ip_address=client_ip,
+        user_agent=user_agent,
+    )
+    await db.commit()
+    await db.refresh(group)
+    return group
+
+
+async def list_organization_groups(
+    db: AsyncSession,
+    *,
+    current_user: User,
+) -> list[OrganizationGroupListItem]:
+    rows = (
+        await db.execute(
+            select(
+                Group,
+                func.count(GroupMember.user_id).label("member_count"),
+            )
+            .outerjoin(GroupMember, GroupMember.group_id == Group.id)
+            .where(_uuid_match(Group.org_id, current_user.org_id))
+            .group_by(Group.id, Group.org_id, Group.name, Group.created_at)
+            .order_by(Group.created_at.asc(), Group.name.asc())
+        )
+    ).all()
+    return [
+        OrganizationGroupListItem(group=row[0], member_count=int(row[1] or 0))
+        for row in rows
+    ]
+
+
+async def add_organization_group_member(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    group_id,
+    payload: AddOrganizationGroupMemberRequest,
+    client_ip: str,
+    user_agent: str,
+) -> GroupMember:
+    group = await _get_org_group_or_raise(db, org_id=current_user.org_id, group_id=group_id)
+    await _get_org_user_or_raise(db, org_id=current_user.org_id, user_id=payload.user_id)
+
+    membership = GroupMember(group_id=group.id, user_id=payload.user_id)
+    db.add(membership)
+    try:
+        await db.flush()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise OrganizationGroupConflictError("user is already a group member") from exc
+
+    await _append_audit_log(
+        db,
+        org_id=current_user.org_id,
+        actor_id=current_user.id,
+        action=AuditLogAction.ADD_GROUP_MEMBER,
+        target_id=group.id,
+        ip_address=client_ip,
+        user_agent=user_agent,
+    )
+    await db.commit()
+    return membership
+
+
+async def remove_organization_group_member(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    group_id,
+    user_id,
+    client_ip: str,
+    user_agent: str,
+) -> None:
+    group = await _get_org_group_or_raise(db, org_id=current_user.org_id, group_id=group_id)
+    membership = (
+        await db.execute(
+            select(GroupMember)
+            .join(Group, Group.id == GroupMember.group_id)
+            .where(
+                _uuid_match(Group.org_id, current_user.org_id),
+                _uuid_match(GroupMember.group_id, group_id),
+                _uuid_match(GroupMember.user_id, user_id),
+            )
+        )
+    ).scalar_one_or_none()
+    if membership is None:
+        raise OrganizationGroupMemberNotFoundError("group member not found")
+
+    await db.execute(
+        delete(GroupMember).where(
+            _uuid_match(GroupMember.group_id, group_id),
+            _uuid_match(GroupMember.user_id, user_id),
+        )
+    )
+    await _append_audit_log(
+        db,
+        org_id=current_user.org_id,
+        actor_id=current_user.id,
+        action=AuditLogAction.REMOVE_GROUP_MEMBER,
+        target_id=group.id,
+        ip_address=client_ip,
+        user_agent=user_agent,
+    )
+    await db.commit()
+
+
 async def _get_org_user_or_raise(db: AsyncSession, *, org_id, user_id) -> User:
     query = select(User).where(
         _uuid_match(User.org_id, org_id),
@@ -297,3 +448,14 @@ async def _get_org_user_or_raise(db: AsyncSession, *, org_id, user_id) -> User:
     if target_user is None:
         raise OrganizationUserNotFoundError("user not found")
     return target_user
+
+
+async def _get_org_group_or_raise(db: AsyncSession, *, org_id, group_id) -> Group:
+    query = select(Group).where(
+        _uuid_match(Group.org_id, org_id),
+        _uuid_match(Group.id, group_id),
+    )
+    group = (await db.execute(query)).scalar_one_or_none()
+    if group is None:
+        raise OrganizationGroupNotFoundError("group not found")
+    return group
