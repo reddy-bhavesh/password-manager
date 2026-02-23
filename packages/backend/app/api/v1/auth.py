@@ -1,10 +1,11 @@
 import uuid
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.dependencies.auth import get_current_user
 from app.core.problems import problem_response
+from app.core.settings import settings
 from app.db.session import get_db_session
 from app.models.user import User
 from app.schemas.auth import (
@@ -46,6 +47,20 @@ from app.services.auth import (
 
 
 router = APIRouter(prefix="/api/v1/auth", tags=["auth"])
+
+REFRESH_TOKEN_COOKIE_NAME = "vaultguard_refresh_token"
+
+
+def _set_refresh_token_cookie(response: Response, refresh_token: str) -> None:
+    response.set_cookie(
+        key=REFRESH_TOKEN_COOKIE_NAME,
+        value=refresh_token,
+        httponly=True,
+        secure=settings.app_env.lower() == "production",
+        samesite="lax",
+        max_age=settings.jwt_refresh_ttl_days * 24 * 60 * 60,
+        path="/",
+    )
 
 
 @router.post("/register", response_model=RegisterUserResponse, status_code=201)
@@ -98,6 +113,7 @@ async def preauth(_: PreauthRequest) -> PreauthResponse:
 async def login(
     payload: LoginRequest,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db_session),
 ) -> LoginResponse:
     client_ip = request.client.host if request.client and request.client.host else "0.0.0.0"
@@ -124,6 +140,9 @@ async def login(
             type_="https://vaultguard.dev/errors/invalid-credentials",
         )
 
+    if result.refresh_token:
+        _set_refresh_token_cookie(response, result.refresh_token)
+
     return LoginResponse(
         access_token=result.access_token,
         refresh_token=result.refresh_token,
@@ -137,6 +156,7 @@ async def login(
 async def refresh(
     payload: RefreshRequest,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db_session),
 ) -> RefreshResponse:
     client_ip = request.client.host if request.client and request.client.host else "0.0.0.0"
@@ -156,6 +176,7 @@ async def refresh(
             type_="https://vaultguard.dev/errors/invalid-refresh-token",
         )
 
+    _set_refresh_token_cookie(response, result.refresh_token)
     return RefreshResponse(access_token=result.access_token, refresh_token=result.refresh_token)
 
 
@@ -261,6 +282,7 @@ async def confirm_mfa_totp(
 async def verify_mfa(
     payload: MfaVerifyRequest,
     request: Request,
+    response: Response,
     db: AsyncSession = Depends(get_db_session),
 ) -> LoginResponse:
     client_ip = request.client.host if request.client and request.client.host else "0.0.0.0"
@@ -294,6 +316,9 @@ async def verify_mfa(
             detail="Invalid or expired MFA code.",
             type_="https://vaultguard.dev/errors/invalid-mfa-code",
         )
+
+    if result.refresh_token:
+        _set_refresh_token_cookie(response, result.refresh_token)
 
     return LoginResponse(
         access_token=result.access_token,

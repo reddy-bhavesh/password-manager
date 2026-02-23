@@ -409,3 +409,17 @@ Key decisions / gotchas:
 - Used a static token-preview page only (no auth/vault interactions) to avoid bleeding into later frontend stories (`FE-002+`).
 Files created/modified: packages/web/src/App.tsx, packages/web/src/styles.css, packages/web/index.html, prd.json, progress.txt
 ---
+---
+[FE-002] — Authentication pages (Login and MFA)
+Date: 2026-02-23
+What was done:
+- Added TanStack Router routes for `/login`, `/mfa`, and a `/vault` redirect target placeholder, plus an auth layout shell.
+- Implemented Login and MFA forms with React Hook Form + Zod validation, inline error handling, and API calls to `/api/v1/auth/login` and `/api/v1/auth/mfa/verify`.
+- Added Zustand auth state to store access tokens/user session and hold the pending MFA challenge token between pages.
+- Added Vitest unit tests for login/MFA validation schemas.
+- Added backend `Set-Cookie` support on login/refresh/MFA verify responses so refresh tokens can be stored as `HttpOnly` cookies while the frontend sends `credentials: include`.
+Key decisions / gotchas:
+- Browsers cannot create `HttpOnly` cookies from JavaScript, so FE-002 required a small backend change to emit the refresh token cookie via response headers.
+- Kept validation tests schema-focused (Vitest + Zod) to satisfy acceptance criteria without adding DOM test dependencies.
+Files created/modified: packages/web/src/App.tsx, packages/web/src/main.tsx, packages/web/src/styles.css, packages/web/src/api/http.ts, packages/web/src/features/auth/api.ts, packages/web/src/features/auth/store.ts, packages/web/src/features/auth/validation.ts, packages/web/src/features/auth/validation.test.ts, packages/web/src/lib/zodResolver.ts, packages/web/src/routes/AuthLayout.tsx, packages/web/src/routes/HomeRoute.tsx, packages/web/src/routes/LoginPage.tsx, packages/web/src/routes/MfaPage.tsx, packages/web/src/routes/VaultPage.tsx, packages/web/src/vite-env.d.ts, packages/backend/app/api/v1/auth.py, prd.json, progress.txt
+---

@@ -411,7 +411,7 @@
                                                    "Invalid credentials show inline error without page reload",
                                                    "Vitest unit tests for form validation logic"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "FE-003",
