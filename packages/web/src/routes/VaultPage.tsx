@@ -589,9 +589,14 @@ export function VaultPage() {
           <PanelBody
             title="Items"
             actions={
-              <button type="button" className="btn btn-primary btn-sm" onClick={openCreateItemModal}>
-                New Item
-              </button>
+              <>
+                <Link to="/generator" className="btn btn-secondary btn-sm">
+                  Generator
+                </Link>
+                <button type="button" className="btn btn-primary btn-sm" onClick={openCreateItemModal}>
+                  New Item
+                </button>
+              </>
             }
           >
             <VaultItemListContent

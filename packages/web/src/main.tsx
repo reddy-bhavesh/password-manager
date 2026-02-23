@@ -7,6 +7,7 @@ import { AuthLayout } from "./routes/AuthLayout";
 import { HomeRoute } from "./routes/HomeRoute";
 import { LoginPage } from "./routes/LoginPage";
 import { MfaPage } from "./routes/MfaPage";
+import { PasswordGeneratorPage } from "./routes/PasswordGeneratorPage";
 import { VaultPage } from "./routes/VaultPage";
 import "./styles.css";
 
@@ -46,7 +47,13 @@ const vaultRoute = createRoute({
   component: VaultPage
 });
 
-const routeTree = rootRoute.addChildren([indexRoute, authRoute.addChildren([loginRoute, mfaRoute]), vaultRoute]);
+const generatorRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/generator",
+  component: PasswordGeneratorPage
+});
+
+const routeTree = rootRoute.addChildren([indexRoute, authRoute.addChildren([loginRoute, mfaRoute]), vaultRoute, generatorRoute]);
 
 const router = createRouter({
   routeTree

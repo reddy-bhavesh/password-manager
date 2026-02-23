@@ -466,3 +466,19 @@ Key decisions / gotchas:
 - Added a local TypeScript module declaration for `libsodium-wrappers-sumo` because the package does not ship typings.
 Files created/modified: packages/web/package.json, package-lock.json, packages/web/src/api/http.ts, packages/web/src/features/vault/api.ts, packages/web/src/features/vault/VaultItemModal.tsx, packages/web/src/features/vault/crypto.ts, packages/web/src/features/vault/crypto.test.ts, packages/web/src/features/vault/validation.ts, packages/web/src/vite-env-libsodium.d.ts, packages/web/src/routes/VaultPage.tsx, packages/web/src/styles.css, prd.json, progress.txt
 ---
+---
+[FE-006] — Password generator component
+Date: 2026-02-23
+What was done:
+- Added a reusable frontend password generator component with password and passphrase modes.
+- Implemented password options (length slider 8-128, uppercase/lowercase/numbers/symbols, exclude ambiguous chars), live preview, strength indicator, and copy-with-30s-auto-clear behavior.
+- Bundled the EFF short word list locally and added passphrase generation with a 3-8 word count selector.
+- Added a standalone /generator page and linked it from the vault items panel.
+- Embedded the generator into the vault item modal login form so generated values can be inserted into the password field.
+- Added Vitest unit tests for generation logic edge cases and verified frontend typecheck/test/build.
+Key decisions / gotchas:
+- Used a bundled EFF short word list file (local source, no runtime network fetch) to satisfy passphrase mode while keeping the UI responsive.
+- Kept generation logic in a pure utility module with injectable randomness so edge-case behavior is testable without DOM/browser mocks.
+- Moved the new /generator link out of VaultDashboardLayout and into VaultPage panel actions to avoid breaking the existing snapshot test (layout renders in tests without a router provider).
+Files created/modified: packages/web/src/features/password-generator/effWordList.ts, packages/web/src/features/password-generator/generator.ts, packages/web/src/features/password-generator/generator.test.ts, packages/web/src/features/password-generator/PasswordGenerator.tsx, packages/web/src/routes/PasswordGeneratorPage.tsx, packages/web/src/features/vault/VaultItemModal.tsx, packages/web/src/main.tsx, packages/web/src/routes/VaultPage.tsx, packages/web/src/styles.css, prd.json, progress.txt
+---

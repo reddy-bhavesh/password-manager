@@ -472,7 +472,7 @@
                                                    "Copy button with 30s clipboard auto-clear",
                                                    "Vitest unit tests for generation logic covering edge cases"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "FE-007",

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { ApiError } from "../../api/http";
 import { zodResolver } from "../../lib/zodResolver";
+import { PasswordGenerator } from "../password-generator/PasswordGenerator";
 import {
   createVaultItem,
   type VaultFolderTreeNode,
@@ -401,6 +402,16 @@ export function VaultItemModal({
                       <span className="field-error">{String(fieldErrors.password.message ?? "")}</span>
                     ) : null}
                   </label>
+                  <PasswordGenerator
+                    compact
+                    className="vault-password-generator"
+                    title="Generate Login Password"
+                    description="Generate a strong password or passphrase and insert it into this field."
+                    useLabel="Use Password"
+                    onUseValue={(value) => {
+                      form.setValue("password", value, { shouldDirty: true, shouldTouch: true, shouldValidate: true });
+                    }}
+                  />
                   <label className="form-field">
                     <span>URL</span>
                     <input
