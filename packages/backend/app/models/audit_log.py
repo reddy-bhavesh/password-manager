@@ -25,6 +25,8 @@ class AuditLogAction(str, enum.Enum):
     SESSION_REVOKE = "session_revoke"
     INVITE_USER = "invite_user"
     ACCEPT_INVITE = "accept_invite"
+    CHANGE_USER_ROLE = "change_user_role"
+    OFFBOARD_USER = "offboard_user"
 
 
 class AuditLog(Base):

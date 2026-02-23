@@ -55,3 +55,38 @@ class InviteUserResponse(BaseModel):
             status=user.status.value if hasattr(user.status, "value") else str(user.status).lower(),
             invitation_expires_at=user.invitation_expires_at,
         )
+
+
+class OrganizationUserResponse(BaseModel):
+    id: uuid.UUID
+    org_id: uuid.UUID
+    email: str
+    name: str
+    role: str
+    status: str
+    mfa_enabled: bool
+    created_at: datetime.datetime
+
+    @classmethod
+    def from_user(cls, user: Any) -> "OrganizationUserResponse":
+        return cls(
+            id=user.id,
+            org_id=user.org_id,
+            email=user.email,
+            name=user.name,
+            role=user.role.value if hasattr(user.role, "value") else str(user.role).lower(),
+            status=user.status.value if hasattr(user.status, "value") else str(user.status).lower(),
+            mfa_enabled=bool(user.mfa_enabled),
+            created_at=user.created_at,
+        )
+
+
+class OrganizationUsersPageResponse(BaseModel):
+    items: list[OrganizationUserResponse]
+    total: int
+    limit: int
+    offset: int
+
+
+class UpdateOrganizationUserRoleRequest(BaseModel):
+    role: Literal["admin", "manager", "member", "viewer"]

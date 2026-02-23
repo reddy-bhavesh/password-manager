@@ -324,7 +324,7 @@
                                                    "Audit log entries for role change and offboarding",
                                                    "Integration tests for all three endpoints"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "ORG-004",

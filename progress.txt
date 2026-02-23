@@ -221,7 +221,6 @@ Key decisions / gotchas:
 - Continued using centralized token validation (`validate_access_token`) to enforce RS256 signature, issuer, and expiry checks in one place.
 Files created/modified: packages/backend/app/api/dependencies/__init__.py, packages/backend/app/api/dependencies/auth.py, packages/backend/app/api/v1/auth.py, packages/backend/app/services/auth.py, packages/backend/tests/test_auth_dependencies_unit.py, prd.json, progress.txt
 ---
----
 [VAULT-001] — Create vault item endpoint
 Date: 2026-02-20
 What was done:
@@ -324,4 +323,19 @@ Key decisions / gotchas:
 - Kept invite delivery as a stubbed email service with DI override so integration tests can assert “email sent” without external SMTP dependencies.
 - Treated invalid, expired, and previously used invitation tokens uniformly as `410 Gone` to satisfy acceptance criteria and reduce token-state leakage.
 Files created/modified: packages/backend/app/api/v1/org.py, packages/backend/app/api/v1/auth.py, packages/backend/app/core/settings.py, packages/backend/app/models/audit_log.py, packages/backend/app/models/user.py, packages/backend/app/schemas/auth.py, packages/backend/app/schemas/org.py, packages/backend/app/security/tokens.py, packages/backend/app/services/auth.py, packages/backend/app/services/org.py, packages/backend/app/services/email.py, packages/backend/alembic/versions/0009_org_invitations_and_audit_actions.py, packages/backend/tests/test_org_invitation_integration.py, packages/backend/tests/test_auth_dependencies_unit.py, packages/backend/tests/test_auth_login_integration.py, packages/backend/tests/test_auth_mfa_integration.py, packages/backend/tests/test_auth_register_integration.py, packages/backend/tests/test_auth_session_management_integration.py, packages/backend/tests/test_org_endpoints_integration.py, packages/backend/tests/test_vault_create_integration.py, packages/backend/tests/test_vault_folders_integration.py, packages/backend/tests/test_vault_item_lifecycle_integration.py, packages/backend/tests/test_vault_restore_history_integration.py, packages/backend/tests/test_vault_sync_integration.py, prd.json, progress.txt
+---
+---
+[ORG-003] — User management endpoints (list, role change, offboard)
+Date: 2026-02-23
+What was done:
+- Added `GET /api/v1/org/users` with org-scoped pagination (`limit`, `offset`) and optional `role`/`status` filters, protected by admin/owner auth.
+- Added `PATCH /api/v1/org/users/{id}/role` to update a user role with audit logging.
+- Added `DELETE /api/v1/org/users/{id}` offboarding flow that sets `status=suspended`, revokes all active sessions, and writes an audit log.
+- Added Alembic migration `0010_org_user_management_audit_actions` and extended `AuditLogAction` with org user-management audit event values.
+- Added integration tests covering listing/filtering, role change, offboarding/session revocation, and owner delete conflict (`409`).
+- Verified with `python -m pytest -q tests/test_org_user_management_integration.py`, `python -m compileall app`, and `python -m alembic upgrade head --sql`.
+Key decisions / gotchas:
+- Used UUID-normalized SQL `UPDATE` statements for role/status/session revocation writes to avoid SQLite UUID row-matching issues in integration tests.
+- Prevented owner role changes in addition to owner deletion to avoid accidentally removing the org owner via the role-change endpoint.
+Files created/modified: packages/backend/app/api/v1/org.py, packages/backend/app/schemas/org.py, packages/backend/app/services/org.py, packages/backend/app/models/audit_log.py, packages/backend/alembic/versions/0010_org_user_management_audit_actions.py, packages/backend/tests/test_org_user_management_integration.py, prd.json, progress.txt
 ---

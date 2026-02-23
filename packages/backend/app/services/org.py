@@ -3,15 +3,18 @@ from __future__ import annotations
 import datetime
 import hashlib
 import secrets
-from sqlalchemy import func, update
+from dataclasses import dataclass
+
+from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.settings import settings
 from app.models.audit_log import AuditLog, AuditLogAction
+from app.models.auth_session import Session
 from app.models.organization import Organization
 from app.models.user import User, UserRole, UserStatus
-from app.schemas.org import CreateOrganizationRequest, InviteUserRequest
+from app.schemas.org import CreateOrganizationRequest, InviteUserRequest, UpdateOrganizationUserRoleRequest
 from app.security.password import argon2_hasher
 from app.security.tokens import issue_invitation_token
 from app.services.email import InvitationEmailSender
@@ -23,6 +26,22 @@ class OrganizationAccessError(Exception):
 
 class InviteUserConflictError(Exception):
     pass
+
+
+class OrganizationUserNotFoundError(Exception):
+    pass
+
+
+class OrganizationUserConflictError(Exception):
+    pass
+
+
+@dataclass(frozen=True)
+class OrganizationUserListPage:
+    users: list[User]
+    total: int
+    limit: int
+    offset: int
 
 
 def _normalize_uuid(value: object) -> str:
@@ -160,3 +179,121 @@ async def invite_user(
         invitation_link=invitation_link,
     )
     return invited_user
+
+
+async def list_organization_users(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    limit: int = 50,
+    offset: int = 0,
+    role: str | None = None,
+    status: str | None = None,
+) -> OrganizationUserListPage:
+    normalized_limit = max(1, min(limit, 100))
+    normalized_offset = max(0, offset)
+
+    filters = [_uuid_match(User.org_id, current_user.org_id)]
+    if role is not None:
+        filters.append(User.role == UserRole(role))
+    if status is not None:
+        filters.append(User.status == UserStatus(status))
+
+    total_query = select(func.count()).select_from(User).where(*filters)
+    total = int((await db.execute(total_query)).scalar_one())
+
+    users_query = (
+        select(User)
+        .where(*filters)
+        .order_by(User.created_at.asc(), User.email.asc())
+        .limit(normalized_limit)
+        .offset(normalized_offset)
+    )
+    users = list((await db.execute(users_query)).scalars().all())
+    return OrganizationUserListPage(
+        users=users,
+        total=total,
+        limit=normalized_limit,
+        offset=normalized_offset,
+    )
+
+
+async def change_organization_user_role(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    user_id,
+    payload: UpdateOrganizationUserRoleRequest,
+    client_ip: str,
+    user_agent: str,
+) -> User:
+    target_user = await _get_org_user_or_raise(db, org_id=current_user.org_id, user_id=user_id)
+    if target_user.role == UserRole.OWNER:
+        raise OrganizationUserConflictError("owner role cannot be changed")
+    new_role = UserRole(payload.role)
+    await db.execute(
+        update(User)
+        .where(_uuid_match(User.id, target_user.id))
+        .values(role=new_role)
+    )
+    await _append_audit_log(
+        db,
+        org_id=current_user.org_id,
+        actor_id=current_user.id,
+        action=AuditLogAction.CHANGE_USER_ROLE,
+        target_id=target_user.id,
+        ip_address=client_ip,
+        user_agent=user_agent,
+    )
+    await db.commit()
+    return await _get_org_user_or_raise(db, org_id=current_user.org_id, user_id=target_user.id)
+
+
+async def offboard_organization_user(
+    db: AsyncSession,
+    *,
+    current_user: User,
+    user_id,
+    client_ip: str,
+    user_agent: str,
+    now: datetime.datetime | None = None,
+) -> None:
+    current_time = now or _now_utc()
+    target_user = await _get_org_user_or_raise(db, org_id=current_user.org_id, user_id=user_id)
+    if target_user.role == UserRole.OWNER:
+        raise OrganizationUserConflictError("owner cannot be offboarded")
+
+    await db.execute(
+        update(User)
+        .where(_uuid_match(User.id, target_user.id))
+        .values(status=UserStatus.SUSPENDED)
+    )
+    await db.execute(
+        update(Session)
+        .where(
+            _uuid_match(Session.user_id, target_user.id),
+            Session.revoked_at.is_(None),
+        )
+        .values(revoked_at=current_time)
+    )
+    await _append_audit_log(
+        db,
+        org_id=current_user.org_id,
+        actor_id=current_user.id,
+        action=AuditLogAction.OFFBOARD_USER,
+        target_id=target_user.id,
+        ip_address=client_ip,
+        user_agent=user_agent,
+    )
+    await db.commit()
+
+
+async def _get_org_user_or_raise(db: AsyncSession, *, org_id, user_id) -> User:
+    query = select(User).where(
+        _uuid_match(User.org_id, org_id),
+        _uuid_match(User.id, user_id),
+    )
+    target_user = (await db.execute(query)).scalar_one_or_none()
+    if target_user is None:
+        raise OrganizationUserNotFoundError("user not found")
+    return target_user
