@@ -482,3 +482,20 @@ Key decisions / gotchas:
 - Moved the new /generator link out of VaultDashboardLayout and into VaultPage panel actions to avoid breaking the existing snapshot test (layout renders in tests without a router provider).
 Files created/modified: packages/web/src/features/password-generator/effWordList.ts, packages/web/src/features/password-generator/generator.ts, packages/web/src/features/password-generator/generator.test.ts, packages/web/src/features/password-generator/PasswordGenerator.tsx, packages/web/src/routes/PasswordGeneratorPage.tsx, packages/web/src/features/vault/VaultItemModal.tsx, packages/web/src/main.tsx, packages/web/src/routes/VaultPage.tsx, packages/web/src/styles.css, prd.json, progress.txt
 ---
+---
+[FE-007] — Onboarding flow (4-step wizard)
+Date: 2026-02-24
+What was done:
+- Added `/onboarding` route with a 4-step wizard (master password, MFA, extension install, import/skip) and visible step indicator.
+- Implemented Step 1 registration flow that derives client-side key material with libsodium Argon2id, generates keypair artifacts, calls `POST /api/v1/auth/register`, then signs in automatically.
+- Implemented Step 2 TOTP MFA enrollment/confirmation using backend enroll + confirm APIs, including QR display and backup code rendering.
+- Implemented Step 3 extension install links with optional Skip/Continue actions.
+- Implemented Step 4 CSV/JSON drag-and-drop import preview with basic local parsing and Skip/Finish actions.
+- Persisted wizard progress/state in `sessionStorage` to survive refreshes and added Framer Motion step transitions.
+- Verified frontend with `npm run typecheck` and `npm run build` in `packages/web`.
+Key decisions / gotchas:
+- Registration currently requires an existing `org_id`, so Step 1 collects org UUID (and optional invitation token) from the user/admin invite rather than creating an org in this story.
+- The current backend auth contract uses `auth_verifier` directly in login/register; the wizard still derives client-side keys (Argon2id) for key material while keeping auth requests compatible with existing login behavior.
+- Running `typecheck` and `build` in parallel on Windows caused an esbuild temp-file lock conflict; running them sequentially resolves it.
+Files created/modified: packages/web/src/routes/OnboardingPage.tsx, packages/web/src/features/onboarding/utils.ts, packages/web/src/features/auth/api.ts, packages/web/src/main.tsx, packages/web/src/styles.css, prd.json, progress.txt
+---

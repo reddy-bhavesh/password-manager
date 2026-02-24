@@ -488,7 +488,7 @@
                                                    "Wizard state persisted in sessionStorage (refresh-safe)",
                                                    "Framer Motion slide transition between steps"
                                                ],
-                        "passes":  false
+                        "passes":  true
                     },
                     {
                         "id":  "FE-008",
